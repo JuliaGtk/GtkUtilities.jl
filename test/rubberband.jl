@@ -1,5 +1,7 @@
-using Gtk.ShortNames, Graphics
+using Gtk.ShortNames
 import GtkUtilities
+using GtkUtilities.Graphics
+
 c = @Canvas()
 win = @Window(c, "RubberBandCanvas")
 draw(c) do widget

@@ -1,6 +1,11 @@
 module GtkUtilities
 
-using Graphics, Cairo, Gtk.ShortNames
+if VERSION < v"0.4.0"
+    using Docile, Base.Graphics
+else
+    using Graphics
+end
+using Cairo, Gtk.ShortNames
 
 export rubberband_start
 
