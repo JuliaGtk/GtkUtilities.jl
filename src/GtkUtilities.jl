@@ -1,6 +1,6 @@
 module GtkUtilities
 
-if VERSION < v"0.4.0"
+if VERSION < v"0.4.0-dev"
     using Docile, Base.Graphics
 else
     using Graphics
