@@ -35,10 +35,14 @@ add_pan_mouse(c)
 add_zoom_key(c)
 add_zoom_mouse(c)
 
-# Select zoom region with rubberband
+# Select zoom region with rubberband, and zoom all the way out
+# with a double-click
 c.mouse.button1press = (widget, event) -> begin
     if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
         rubberband_start(c, event.x, event.y, (c, bb) -> (guidata[c, :viewbb]=bb; draw(c)))
+    elseif event.event_type == Gtk.GdkEventType.DOUBLE_BUTTON_PRESS
+        guidata[c, :viewbb] = fullview(guidata[c, :viewlimits])
+        draw(c)
     end
 end
 

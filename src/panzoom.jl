@@ -4,6 +4,7 @@ using Gtk, Compat
 import Gtk.GConstants: GDK_KEY_Left, GDK_KEY_Right, GDK_KEY_Up, GDK_KEY_Down
 import Gtk.GConstants.GdkModifierType: SHIFT, CONTROL, MOD1
 import Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
+import Gtk.GdkEventType: BUTTON_PRESS, DOUBLE_BUTTON_PRESS
 import Gtk.GConstants.GdkScrollDirection: UP, DOWN
 
 if VERSION < v"0.4.0-dev+3275"
@@ -22,6 +23,8 @@ export
     CONTROL,
     ALT,
     # functions
+    interior,
+    fullview,
     add_pan_key,
     add_pan_mouse,
     add_zoom_key,
@@ -59,6 +62,16 @@ function interior(bb, limits::BoundingBox)
     BoundingBox(xmin, xmax, ymin, ymax) & limits
 end
 
+@doc """
+`bbnew = fullview(limits)` returns a `BoundingBox` `bbnew` that
+encompases the full view as permitted by `limits`.
+
+The simplest `limits` object is another `BoundingBox` representing the
+"whole canvas." If you need more sophisticated behavior, you can
+extend this function to work with custom types of `limits` objects.
+""" ->
+fullview(limits::BoundingBox) = limits
+
 pan(bb, dx, dy, limits) = interior(shift(bb, dx, dy), limits)
 panx(bb, frac, limits) = interior(shift(bb, frac*width(bb),  0), limits)
 pany(bb, frac, limits) = interior(shift(bb, 0, frac*height(bb)), limits)
@@ -74,7 +87,7 @@ canvas `c`.
 might be the entire area, or it might be smaller due to a previous
 zoom event.  `:viewlimits` encodes the maximum allowable viewing
 region; in most cases it will be another `BoundingBox`, but any object
-that supports `interior` may be used.
+that supports `interior` and `fullview` may be used.
 
 You can configure the keys through keyword arguments. The default
 settings are shown below. The first entry is the key, the second a
@@ -253,11 +266,10 @@ for a canvas `c`.
 Zooming is selected by a modifier key, which is configurable through
 keyword arguments.  The keywords and their defaults are:
 ```
-    mod   = CONTROL,     # hold down the ctrl-key
-    focus = :pointer
+    mod       = CONTROL,     # hold down the ctrl-key
+    focus     = :pointer
 ```
-CONTROL is defined in `Gtk.GConstants.GdkModifierType`, and 0 means no
-modifier.
+CONTROL is defined in `Gtk.GConstants.GdkModifierType`.
 
 The `focus` keyword controls how the zooming progresses as you scroll
 the mouse wheel. `:pointer` means that whatever feature of the canvas

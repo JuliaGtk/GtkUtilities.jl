@@ -11,6 +11,8 @@ else
 end
 
 export rubberband_start, guidata,
+    interior,
+    fullview,
     add_pan_key,
     add_pan_mouse,
     add_zoom_key,
@@ -21,6 +23,7 @@ include("guidata.jl")
 using .GuiData
 include("panzoom.jl")
 using .PanZoom
+import .PanZoom: interior, fullview   # for extensions
 
 @doc """
 Summary of features in GtkUtilities:
