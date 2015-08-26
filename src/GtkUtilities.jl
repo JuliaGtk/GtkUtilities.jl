@@ -9,11 +9,17 @@ else
 end
 using Cairo, Gtk.ShortNames
 
-export rubberband_start, guidata
+export rubberband_start, guidata,
+    add_pan_key,
+    add_pan_mouse,
+    add_zoom_key,
+    add_zoom_mouse
 
 include("rubberband.jl")
 include("guidata.jl")
 using .GuiData
+include("panzoom.jl")
+using .PanZoom
 
 @doc """
 Summary of features in GtkUtilities:
