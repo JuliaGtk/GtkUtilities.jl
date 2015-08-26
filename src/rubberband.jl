@@ -8,6 +8,7 @@ type RubberBand
     pos1::Vec2
     pos2::Vec2
     moved::Bool
+    minpixels::Int
 end
 
 const dash   = Float64[3.0,3.0]
@@ -38,12 +39,13 @@ rb_set(r::GraphicsContext, rb::RubberBand) = rectangle(r, rb.pos1.x, rb.pos1.y, 
 # Its syntax is callback_done(canvas, boundingbox), where the boundingbox is
 # in user coordinates.
 @doc """
-
-`rubberband_start(c, x, y, callback_done)` starts a rubber-band
+`rubberband_start(c, x, y, callback_done; minpixels=2)` starts a rubber-band
 selection on Canvas `c` at position `(x,y)`.  When the user releases
 the mouse button, the callback function `callback_done(c, bb)` is run,
-where `bb` is the BoundingBox of the selected region.  The callback is
-skipped if the user does not move the mouse.
+where `bb` is the BoundingBox of the selected region.  To reduce the
+likelihood that clicks used to raise windows will result in
+rubber banding, the callback is not executed unless the user drags
+the mouse by at least `minpixels` pixels (default value 2).
 
 Example:
 
@@ -53,15 +55,15 @@ Example:
         end
     end
 
-would set up a Canvas so that rubberband selection starts when the user clicks the mouse, and displays the bounding box of the selection region when finished.
+would set up a Canvas so that rubberband selection starts when the user clicks the mouse; when the button is released, it displays the bounding box of the selection region.
 """ ->
-function rubberband_start(c::Canvas, x, y, callback_done::Function)
+function rubberband_start(c::Canvas, x, y, callback_done::Function; minpixels::Int=2)
     # Copy the surface to another buffer, so we can repaint the areas obscured by the rubberband
     r = getgc(c)
     save(r)
     reset_transform(r)
     ctxcopy = copy(r)
-    rb = RubberBand(Vec2(x,y), Vec2(x,y), false)
+    rb = RubberBand(Vec2(x,y), Vec2(x,y), false, minpixels)
     callbacks_old = (c.mouse.button1motion, c.mouse.button1release)
     c.mouse.button1motion = (c, event) -> rubberband_move(c, rb, event.x, event.y, ctxcopy)
     c.mouse.button1release = (c, event) -> rubberband_stop(c, rb, event.x, event.y, ctxcopy, callbacks_old, callback_done)
@@ -91,7 +93,7 @@ function rubberband_stop(c::Canvas, rb::RubberBand, x, y, ctxcopy, callbacks_old
     restore(r)
     reveal(c, false)
     x1, y1 = rb.pos1.x, rb.pos1.y
-    if abs(x1-x) > 2 || abs(y1-y) > 2
+    if abs(x1-x) > rb.minpixels || abs(y1-y) > rb.minpixels
         # It moved sufficiently, let's execute the callback
         xu, yu = device_to_user(r, x, y)
         x1u, y1u = device_to_user(r, x1, y1)
