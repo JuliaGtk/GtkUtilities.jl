@@ -30,18 +30,15 @@ export
 const ALT = MOD1
 
 
-# Any `limits` type should support the following API (`box` is a
-# `BoundingBox` as defined in `Graphics`):
-
-#  - `interior(box, limits)` returns a variant of `box` which is
-#    inside the region allowd by `limits`. If possible, the width and
-#    height of `box` should be preserved.
-
 @doc """
-`interior(bb, limits)` returns a variant of `bb`, a `BoundingBox`
-which is inside the region allowd by `limits`. One should prefer
-"shifting" `bb` over "shrinking" `bb` (if possible, the width and
-height of `bb` should be preserved).
+`bbnew = interior(bb, limits)` returns a new version of `bb`, a
+`BoundingBox`, which is inside the region allowd by `limits`. One
+should prefer "shifting" `bb` over "shrinking" `bb` (if possible, the
+width and height of `bb` should be preserved).
+
+The simplest `limits` object is another `BoundingBox` representing the
+"whole canvas." If you need more sophisticated behavior, you can
+extend this function to work with custom types of `limits` objects.
 """ ->
 function interior(bb, limits::BoundingBox)
     xmin, xmax, ymin, ymax = bb.xmin, bb.xmax, bb.ymin, bb.ymax

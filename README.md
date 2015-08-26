@@ -5,40 +5,25 @@
 This package is a collection of extensions to
 [Gtk](https://github.com/JuliaLang/Gtk.jl) that make interactive
 graphics easier.  For example, it allows you to:
-- easily add rubber-band selection to a Canvas
 - "attach" user data to widgets or any other object
+- perform rubber-band selection
+- use pan and zoom
 
 Planned capabilities include:
-- support for pan and zoom
 - support for hit testing (selecting objects like points or lines)
 
 Possible extensions (likely via separate packages):
 - interactive color picker
 - on-screen drawing
 
-## Exported functions
+## Installation
 
-### `rubberband_start`: implements rubber band selection
-
-`rubberband_start(c, x, y, callback_done; minpixels=2)` starts a rubber-band
-selection on Canvas `c` at position `(x,y)`.  When the user releases
-the mouse button, the callback function `callback_done(c, bb)` is run,
-where `bb` is the BoundingBox of the selected region.  To reduce the
-likelihood that clicks used to raise windows will result in
-rubber banding, the callback is not executed unless the user drags
-the mouse by at least `minpixels` pixels (default value 2).
-
-Example:
+Install via
 ```jl
-    c.mouse.button1press = (widget, event) -> begin
-        if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
-            GtkUtilities.rubberband_start(c, event.x, event.y, (c, bb) -> @show bb)
-        end
-    end
+Pkg.add("GtkUtilities")
 ```
-would set up a Canvas so that rubberband selection starts when the
-user clicks the mouse; when the button is released, it displays the
-bounding box of the selection region.
+
+## Usage
 
 ### `guidata`: associating user data with widgets
 
@@ -62,12 +47,79 @@ delete!(guidata, (w,:name))    # deletes the value associated with :name
 delete!(guidata, w)            # deletes all data associated with w
 ```
 
+If `w` is a `GtkWidget`, the associated data are automatically deleted
+when the object is destroyed.
+
 Example:
 ```jl
     c = @Canvas()
     bb = BoundingBox(0, 1, 0, 1)
     guidata[c, :zoombb] = bb
 ```
+
+### Rubber band selection
+
+`rubberband_start(c, x, y, callback_done; minpixels=2)` starts a rubber-band
+selection on Canvas `c` at position `(x,y)`.  When the user releases
+the mouse button, the callback function `callback_done(c, bb)` is run,
+where `bb` is the BoundingBox of the selected region.  To reduce the
+likelihood that clicks used to raise windows will result in
+rubber banding, the callback is not executed unless the user drags
+the mouse by at least `minpixels` pixels (default value 2).
+
+Example:
+```jl
+    c.mouse.button1press = (widget, event) -> begin
+        if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
+            GtkUtilities.rubberband_start(c, event.x, event.y, (c, bb) -> @show bb)
+        end
+    end
+```
+sets up a Canvas so that rubberband selection starts when the
+user clicks the mouse; when the button is released, it prints the
+bounding box of the selection region.
+
+### Zooming and panning
+
+Zooming and panning a Canvas `c` are performed using two `guidata`
+objects, `guidata[c, :viewbb]` and `guidata[c, :viewlimits]`.
+`:viewbb` expresses the current view region, which includes effects of
+any previous zoom and pan operations.  `:viewlimits` corresponds to an
+object which can act to prevent panning or zooming from going beyond an
+allowable area; most commonly this is just another bounding box, but
+any object for which you implement `interior` can serve as a valid
+`:viewlimits` object. (See `?interior` for more information.)
+
+It is crucial that the `draw` method for your Canvas makes use of the
+`:viewbb` property and renders only over the selected view region.
+In the simplest cases, you might achieve this with
+```jl
+ctx = getgc(c)
+h = height(c)
+w = width(c)
+bb = guidata[c, :viewbb]
+set_coords(ctx, BoundingBox(0, w, 0, h), bb)
+```
+and then rendering the entire canvas in units of the original
+"full-view" `bb` (e.g., `:viewlimits`).
+
+You intialize panning and zooming with
+```
+id1 = add_pan_key(c)
+id2 = add_pan_mouse(c)
+id3 = add_zoom_key(c)
+id4 = add_zoom_mouse(c)
+```
+
+This sequence will implement panning and zooming with either the
+keyboard or wheel-mouse.  You can specify the keys and modifiers, as
+well as the behavior of scroll-zooming relative to the mouse pointer
+location, via keyword arguments to these functions. See each
+individual function (e.g., `?add_pan_key`) for more information.
+
+The returned `id` can be disabled or enabled via
+`signal_handler_block` and `signal_handler_unblock`, respectively, or
+removed with `signal_handler_disconnect`.
 
 ## Help
 
