@@ -46,4 +46,25 @@ Base.show(io::IO, wd::Widgetdata) = print(io, "widgetdata")
 
 const widgetdata = Widgetdata()
 
+@doc """
+Give a widget (Button, Canvas, etc.) `w`, a value `val` can be associated with ("stored in") `w` using
+```
+widgetdata[w, :name] = val
+```
+where `:name` is the name (a Symbol) you've assigned to `val` for the
+purposes of storage.
+
+The value can be retrieved with
+```
+val = widgetdata[w, :name]
+```
+Here are some other things you can do with `widgetdata`:
+```
+alldata = widgetdata[w]           # fetch all data associated with w
+val = get(widgetdata, (w,:name), default)
+delete!(widgetdata, (w,:name))
+delete!(widgetdata, w)
+```
+""" -> widgetdata
+
 end
