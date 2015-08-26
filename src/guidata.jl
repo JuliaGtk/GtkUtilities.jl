@@ -1,6 +1,12 @@
 module GuiData
 
 using Gtk, Compat
+if VERSION < v"0.4.0-dev"
+    # using Docile
+    macro doc(ex)
+        esc(ex.args[2])
+    end
+end
 
 export guidata
 

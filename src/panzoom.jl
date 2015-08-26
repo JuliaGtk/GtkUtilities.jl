@@ -7,8 +7,8 @@ import Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
 import Gtk.GdkEventType: BUTTON_PRESS, DOUBLE_BUTTON_PRESS
 import Gtk.GConstants.GdkScrollDirection: UP, DOWN
 
-if VERSION < v"0.4.0-dev+3275"
-    using Base.Graphics
+if VERSION < v"0.4.0-dev"
+    using Docile, Base.Graphics
 else
     using Graphics
 end
