@@ -11,4 +11,4 @@ graphics easier.
 See the help for each function:
 
 - `rubberband_start`: rubber band selection
-- `widgetdata`:       associating user data with widgets
+- `guidata`:       associating user data with widgets

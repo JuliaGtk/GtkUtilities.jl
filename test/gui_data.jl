@@ -9,14 +9,14 @@ push!(hbox, cancel)
 push!(hbox, ok)
 
 line = rand(5)
-widgetdata[win,:line] = line
-l = widgetdata[win,:line]
+guidata[win,:line] = line
+l = guidata[win,:line]
 @test l == line
-@test_throws KeyError widgetdata[win,:lyne]
-@test length(widgetdata[win]) == 1
+@test_throws KeyError guidata[win,:lyne]
+@test length(guidata[win]) == 1
 
 destroy(win)
-@test_throws KeyError widgetdata[win,:line]
-@test_throws KeyError widgetdata[win]
+@test_throws KeyError guidata[win,:line]
+@test_throws KeyError guidata[win]
 
 nothing

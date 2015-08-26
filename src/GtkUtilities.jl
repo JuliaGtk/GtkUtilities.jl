@@ -9,10 +9,10 @@ else
 end
 using Cairo, Gtk.ShortNames
 
-export rubberband_start, widgetdata
+export rubberband_start, guidata
 
 include("rubberband.jl")
-include("widgetdata.jl")
-using .WidgetData
+include("guidata.jl")
+using .GuiData
 
 end # module
