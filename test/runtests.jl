@@ -1,5 +1,5 @@
 using GtkUtilities
 using Base.Test
 
-# write your own tests here
-@test 1 == 1
+include("rubber_band.jl")
+include("widget_data.jl")

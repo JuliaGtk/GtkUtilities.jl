@@ -1,6 +1,5 @@
 using Gtk.ShortNames
-import GtkUtilities
-using GtkUtilities.Graphics
+using GtkUtilities, GtkUtilities.Graphics
 
 c = @Canvas()
 win = @Window(c, "RubberBandCanvas")
@@ -25,7 +24,7 @@ end
 # Set up a rubberband-on-click
 c.mouse.button1press = (widget, event) -> begin
     if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
-        GtkUtilities.rubberband_start(c, event.x, event.y, (c, bb) -> @show bb)
+        rubberband_start(c, event.x, event.y, (c, bb) -> @show bb)
     end
 end
 
