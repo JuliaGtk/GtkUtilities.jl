@@ -1,2 +1,6 @@
 julia 0.3
+Gtk
+Cairo
+Graphics
 Docile
+Compat
