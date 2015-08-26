@@ -66,6 +66,12 @@ alldata = guidata[w]           # fetch all data associated with w
 val = get(guidata, (w,:name), default)   # returns default if :name not defined
 delete!(guidata, (w,:name))    # deletes the value associated with :name
 delete!(guidata, w)            # deletes all data associated with w
+
+Example:
+
+    c = @Canvas()
+    bb = BoundingBox(0, 1, 0, 1)
+    guidata[c, :zoombb] = bb
 ```
 """ -> guidata
 

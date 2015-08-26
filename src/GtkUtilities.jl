@@ -15,4 +15,13 @@ include("rubberband.jl")
 include("guidata.jl")
 using .GuiData
 
+@doc """
+Summary of features in GtkUtilities:
+
+- `rubberband_start`: initiate rubber band selection
+- `guidata`: associate user data with on-screen elements
+
+Each of these has detailed help available, e.g., `?guidata`.
+""" -> GtkUtilities
+
 end # module
