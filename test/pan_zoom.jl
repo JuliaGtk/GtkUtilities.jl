@@ -30,6 +30,8 @@ draw(c) do widget
     fill(ctx)
 end
 
+showall(c)
+
 add_pan_key(c)
 add_pan_mouse(c)
 add_zoom_key(c)
@@ -46,5 +48,4 @@ c.mouse.button1press = (widget, event) -> begin
     end
 end
 
-show(c)
 nothing

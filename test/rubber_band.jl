@@ -28,4 +28,4 @@ c.mouse.button1press = (widget, event) -> begin
     end
 end
 
-show(c)
+showall(c)
