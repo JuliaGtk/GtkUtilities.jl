@@ -18,11 +18,11 @@ GUIData() = GUIData(Dict{Any,Dict{Symbol,Any}}())
 
 const empty_guidata = Dict{Symbol,Any}()
 
-Base.getindex{T}(wd::GUIData{T}, w::T) = wd.data[w]
-Base.getindex{T}(wd::GUIData{T}, w::T, s::Symbol) = wd.data[w][s]
+Base.getindex(wd::GUIData, w) = wd.data[w]
+Base.getindex(wd::GUIData, w, s::Symbol) = wd.data[w][s]
 Base.getindex{T}(wd::GUIData{T}, ws::@compat(Tuple{T,Symbol})) = wd[ws[1], ws[2]]
 
-function Base.setindex!{T}(wd::GUIData{T}, val, w::T, s::Symbol)
+function Base.setindex!(wd::GUIData, val, w, s::Symbol)
     d = get(wd.data, w, empty_guidata)
     if d == empty_guidata
         d = wd.data[w] = Dict{Symbol,Any}()
@@ -35,19 +35,19 @@ function Base.setindex!{T}(wd::GUIData{T}, val, w::T, s::Symbol)
     d[s] = val
 end
 
-Base.setindex!{T}(wd::GUIData{T}, val, ws::@compat(Tuple{T,Symbol})) = wd.data[ws[1],ws[2]] = val
+Base.setindex!{T}(wd::GUIData, val, ws::@compat(Tuple{T,Symbol})) = wd.data[ws[1],ws[2]] = val
 
-function Base.get{T}(wd::GUIData{T}, ws::@compat(Tuple{T,Symbol}), default)
+function Base.get{T}(wd::GUIData, ws::@compat(Tuple{T,Symbol}), default)
     d = get(wd.data, ws[1], empty_guidata)
     d == empty_guidata ? default : get(d, ws[2], default)
 end
 
-function Base.delete!{T}(wd::GUIData{T}, ws::@compat(Tuple{T,Symbol}))
+function Base.delete!{T}(wd::GUIData, ws::@compat(Tuple{T,Symbol}))
     d = get(wd.data, ws[1], empty_guidata)
     d == empty_guidata ? wd : (delete!(d, ws[2]); wd)
 end
 
-Base.delete!{T}(wd::GUIData{T}, w::T) = delete!(wd.data, w)
+Base.delete!(wd::GUIData, w) = delete!(wd.data, w)
 
 Base.show(io::IO, wd::GUIData) = print(io, "GUIdata")
 
