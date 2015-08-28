@@ -5,6 +5,7 @@
 This package is a collection of extensions to
 [Gtk](https://github.com/JuliaLang/Gtk.jl) that make interactive
 graphics easier.  For example, it allows you to:
+- synchronize state across multiple UI widgets and canvases
 - "attach" user data to widgets or any other object
 - perform rubber-band selection
 - use pan and zoom
@@ -24,6 +25,45 @@ Pkg.add("GtkUtilities")
 ```
 
 ## Usage
+
+### Managing state
+
+Suppose you have a slider (a `Scale`) and an `Entry` box as two
+alternative mechanisms for specifying a single number, and you want to
+use that number in some calculations when you render a `Canvas`.
+Who "owns" the number? Does the `Entry` callback have to be aware of
+the `Scale` callback, and vice-versa?
+
+You can centralize your handling of this piece of information by using
+a `State` object and `link`ing it to the UI elements:
+
+```jl
+state = State(5)
+
+e = @Entry()
+s = @Scale(false, 1:10)
+c = @Canvas()
+draw(c) do widget
+   ...   # make use of state in here somewhere
+end
+
+elink = link(state, e)
+slink = link(state, s)
+link(state, c)
+
+get(elink)               # returns 5
+set!(state, 7)           # wow, the Canvas redraws and the Entry & Scale change!
+get(state)               # returns 7
+get(slink)               # returns 7
+set!(slink, 4)           # everything updates again
+```
+
+Note that in this example we didn't have to write any callbacks at
+all: just `link`ing the widget to the `State` object creates the
+callback we need, and any changes are automatically propagated for
+you.
+
+The design of the State component was inspired by Reactive.jl.
 
 ### `guidata`: associating user data with widgets
 
