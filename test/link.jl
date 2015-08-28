@@ -1,4 +1,4 @@
-using GtkUtilities, Gtk.ShortNames
+using GtkUtilities, Gtk.ShortNames, Cairo, GtkUtilities.Graphics
 using Base.Test
 
 e = @Entry()
@@ -39,3 +39,38 @@ llink = link(s, l)
 @test get(llink) == "world"
 set!(llink, "Gtk")
 @test get(s) == "Gtk"
+
+
+module IV
+
+type Interval
+    min::Float64
+    max::Float64
+end
+
+end
+
+c = @Canvas()
+win = @Window(c)
+s = State(IV.Interval(0,1))
+link(s, c)
+
+pat = pattern_create_linear(0,0.5,1,0.5)
+pattern_add_color_stop_rgb(pat, 0, 0, 1, 0)
+pattern_add_color_stop_rgb(pat, 1, 1, 0, 1)
+draw(c) do widget
+    ctx = getgc(c)
+    h = height(c)
+    w = width(c)
+    iv = get(s)
+    bb = BoundingBox(iv.min, iv.max, 0, 1)
+    set_coords(ctx, BoundingBox(0, w, 0, h), bb)
+    rectangle(ctx, 0, 0, 1, 1)
+    set_source(ctx, pat)
+    fill(ctx)
+end
+
+showall(win)
+sleep(0.5)
+set!(s, IV.Interval(0.25, 0.75))
+showall(win)
