@@ -10,7 +10,18 @@ else
     using Graphics
 end
 
-export rubberband_start, guidata,
+export
+    # GUIData
+    guidata,
+    # Link
+    State,
+    link,
+    get,
+    set!,
+    set_quietly!,
+    # Rubberband
+    rubberband_start,
+    # PanZoom
     interior,
     fullview,
     add_pan_key,
@@ -18,9 +29,11 @@ export rubberband_start, guidata,
     add_zoom_key,
     add_zoom_mouse
 
-include("rubberband.jl")
 include("guidata.jl")
 using .GuiData
+include("link.jl")
+using .Link
+include("rubberband.jl")
 include("panzoom.jl")
 using .PanZoom
 import .PanZoom: interior, fullview   # for extensions
