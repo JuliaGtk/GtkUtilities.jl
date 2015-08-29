@@ -54,6 +54,14 @@ function State{T}(value::T;
     State{T}(value, widgets, canvases)
 end
 
+function Base.similar(s::State)
+    v = get(s)
+    if !isimmutable(v)
+        v = copy(v)
+    end
+    State(v, s.widgets, s.canvases)
+end
+
 function set!{T}(state::State{T}, value)
     state.value = value
     for w in state.widgets
@@ -131,7 +139,7 @@ objects.
 
 `link(state, c)`, where `c` is a `Canvas`, makes `c` a
 listener for `state`. There is no return value.
-"""
+""" ->
 function link{T}(val::AbstractState{T}, widget::Gtk.GtkWidget)
     w = LinkedWidget{T,typeof(widget),typeof(val)}(widget, 0, val)
     _link(val, w)

@@ -25,8 +25,10 @@ export
     # Rubberband
     rubberband_start,
     # PanZoom
+    Interval,
     interior,
     fullview,
+    panzoom,
     add_pan_key,
     add_pan_mouse,
     add_zoom_key,

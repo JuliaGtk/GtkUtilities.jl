@@ -6,6 +6,7 @@ import Gtk.GConstants.GdkModifierType: SHIFT, CONTROL, MOD1
 import Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
 import Gtk.GdkEventType: BUTTON_PRESS, DOUBLE_BUTTON_PRESS
 import Gtk.GConstants.GdkScrollDirection: UP, DOWN
+import Base: *
 
 if VERSION < v"0.4.0-dev"
     using Docile, Base.Graphics
@@ -13,7 +14,15 @@ else
     using Graphics
 end
 
+using ..GtkUtilities.Link
+import ..guidata
+import ..Link: AbstractState
+
+typealias VecLike Union{AbstractVector,Tuple}
+
 export
+    # Types
+    Interval,
     # constants
     GDK_KEY_Left,
     GDK_KEY_Right,
@@ -25,6 +34,7 @@ export
     # functions
     interior,
     fullview,
+    panzoom,
     add_pan_key,
     add_pan_mouse,
     add_zoom_key,
@@ -32,62 +42,120 @@ export
 
 const ALT = MOD1
 
+@doc """
+An `Interval` is a `(min,max)` pair. It is the one-dimensional analog
+of a `BoundingBox`.
+""" ->
+immutable Interval{T}
+    min::T
+    max::T
+end
+Base.convert{T}(::Type{Interval{T}}, v::Interval{T}) = v
+Base.convert{T}(::Type{Interval{T}}, v::Interval) = Interval{T}(v.min, v.max)
+Base.convert{T}(::Type{Interval{T}}, v::VecLike)  = Interval{T}(v...)
+
+Graphics.width(iv::Interval) = iv.max-iv.min
+(Base.&)(iv1::Interval, iv2::Interval) = Interval(max(iv1.min, iv2.min),
+                                             min(iv1.max, iv2.max))
+Graphics.shift(iv::Interval, dx) = deform(iv, dx, dx)
+function (*)(s::Real, iv::Interval)
+    dx = 0.5*(s - 1)*width(iv)
+    deform(iv, -dx, dx)
+end
+(*)(iv::Interval, s::Real) = s*iv
+Graphics.deform(iv::Interval, dmin, dmax) = Interval(iv.min+dmin, iv.max+dmax)
 
 @doc """
-`bbnew = interior(bb, limits)` returns a new version of `bb`, a
-`BoundingBox`, which is inside the region allowd by `limits`. One
-should prefer "shifting" `bb` over "shrinking" `bb` (if possible, the
-width and height of `bb` should be preserved).
+`ivnew = interior(iv, limits)` returns a new version of `iv`, an
+`Interval`, which is inside the region allowd by `limits`. One
+should prefer "shifting" `iv` over "shrinking" `iv` (if possible, the
+width of `iv` should be preserved).
 
-The simplest `limits` object is another `BoundingBox` representing the
-"whole canvas." If you need more sophisticated behavior, you can
-extend this function to work with custom types of `limits` objects.
+If `limits == nothing`, then `iv` is unconstrained and `ivnew == iv`.
+
+The simplest effectual `limits` object is another `Interval`
+representing the full view interval across the chosen axis. If you
+need more sophisticated behavior, you can extend this function to work
+with custom types of `limits` objects.
 """ ->
-function interior(bb, limits::BoundingBox)
-    xmin, xmax, ymin, ymax = bb.xmin, bb.xmax, bb.ymin, bb.ymax
-    if xmin < limits.xmin
-        xmin = limits.xmin
-        xmax = xmin + width(bb)
-    elseif xmax > limits.xmax
-        xmax = limits.xmax
-        xmin = xmax - width(bb)
+interior(iv, ::Void) = iv
+
+function interior(iv, limits::Interval)
+    imin, imax = iv.min, iv.max
+    if imin < limits.min
+        imin = limits.min
+        imax = imin + width(iv)
+    elseif imax > limits.max
+        imax = limits.max
+        imin = imax - width(iv)
     end
-    if ymin < limits.ymin
-        ymin = limits.ymin
-        ymax = ymin + width(bb)
-    elseif ymax > limits.ymax
-        ymax = limits.ymax
-        ymin = ymax - width(bb)
-    end
-    BoundingBox(xmin, xmax, ymin, ymax) & limits
+    Interval(imin, imax) & limits
 end
 
 @doc """
-`bbnew = fullview(limits)` returns a `BoundingBox` `bbnew` that
+`iv = fullview(limits)` returns an `Interval` `iv` that
 encompases the full view as permitted by `limits`.
 
-The simplest `limits` object is another `BoundingBox` representing the
-"whole canvas." If you need more sophisticated behavior, you can
-extend this function to work with custom types of `limits` objects.
+If `limits == nothing`, then `fullview` returns `nothing`.
+
+The simplest effectual `limits` object is another `Interval`
+representing the "whole canvas" along the chosen axis. If you need
+more sophisticated behavior, you can extend this function to work with
+custom types of `limits` objects.
 """ ->
-fullview(limits::BoundingBox) = limits
+fullview(::Void) = nothing
 
-pan(bb, dx, dy, limits) = interior(shift(bb, dx, dy), limits)
-panx(bb, frac, limits) = interior(shift(bb, frac*width(bb),  0), limits)
-pany(bb, frac, limits) = interior(shift(bb, 0, frac*height(bb)), limits)
+fullview(limits::Interval) = limits
 
-zoom(bb, s::Real, limits) = interior(s*bb, limits)
+@doc """
+```jl
+panzoom(c, viewxlimits, viewylimits)
+panzoom(c, viewxlimits, viewylimits, viewx, viewy)
+```
+sets up the Canvas `c` for panning and zooming. The arguments may be
+2-tuples, 2-vectors, or Intervals.
+
+`panzoom` creates the `:view[x|y]`, `:view[x|y]limits` properties of
+`c`:
+
+- `:viewx`, `:viewy` are two `AbstractState`s (for horizontal and
+    vertical, respectively), each holding an Interval specifying
+    the current "view" limits. This might be the entire area, or it
+    might be a subregion due to a previous zoom event.
+
+- `:viewxlimits`, `:viewylimits` encode the maximum allowable viewing
+    region; in most cases these will also be `State{Interval}`s, but
+    any object that supports `interior` and `fullview` may be used.
+
+""" ->
+panzoom(c, viewxlimits::Interval, viewylimits::Interval) =
+    panzoom(c, State(viewxlimits), State(viewylimits))
+
+panzoom(c, viewxlimits::VecLike, viewylimits::VecLike) = panzoom(c, iv(viewxlimits), iv(viewylimits))
+
+panzoom(c, viewxlimits::VecLike, viewylimits::VecLike, viewx::VecLike, viewy::VecLike) = panzoom(c, iv(viewxlimits), iv(viewylimits), iv(viewx), iv(viewy))
+
+function panzoom(c, viewxlimits::AbstractState, viewylimits::AbstractState, viewx::AbstractState = similar(viewxlimits), viewy::AbstractState = similar(viewylimits))
+    guidata[c, :viewx] = viewx
+    guidata[c, :viewy] = viewy
+    guidata[c, :viewxlimits] = viewxlimits
+    guidata[c, :viewylimits] = viewylimits
+    link(viewx, c)
+    link(viewy, c)
+    nothing
+end
+
+iv(x) = Interval{Float64}(x...)
+
+
+pan(iv, frac::Real, limits) = interior(shift(iv, frac*width(iv)), limits)
+
+zoom(iv, s::Real, limits) = interior(s*iv, limits)
 
 @doc """
 `id = add_pan_key(c; kwargs...)` initializes panning-by-keypress for a
-canvas `c`.
-
-`c` is expected to have two `guidata` properties, `:viewbb` and
-`:viewlimits`.  `:viewbb` is its current "view" `BoundingBox`---this
-might be the entire area, or it might be smaller due to a previous
-zoom event.  `:viewlimits` encodes the maximum allowable viewing
-region; in most cases it will be another `BoundingBox`, but any object
-that supports `interior` and `fullview` may be used.
+canvas `c`. `c` is expected to have the four `guidata` properties
+described in `panzoom`.
 
 You can configure the keys through keyword arguments. The default
 settings are shown below. The first entry is the key, the second a
@@ -115,9 +183,7 @@ removed with `signal_handler_disconnect`.
 Example:
 ```
     c = @Canvas()
-    bb = BoundingBox(0,1,0,1)
-    guidata[c, :viewlimits] = bb      # the "outer" limits of the plot
-    guidata[c, :viewbb] = bb          # set the initial view to the whole view
+    panzoom(c, (0,1), (0,1))
     id = add_pan_keys(c)
 ```
 The `draw` method for `c` should take account of `:viewbb`.
@@ -135,30 +201,31 @@ function add_pan_key(c;
     setproperty!(c, :can_focus, true)
     setproperty!(c, :has_focus, true)
     signal_connect(c, :key_press_event) do widget, event
-        bb     = Main.GtkUtilities.guidata[c, :viewbb]
-        limits = Main.GtkUtilities.guidata[c, :viewlimits]
-        bb0 = bb
+        viewx_s = guidata[c, :viewx]
+        viewy_s = guidata[c, :viewy]
+        viewx, viewy = get(viewx_s), get(viewy_s)
+        viewxlimits = get(guidata[c, :viewxlimits])
+        viewylimits = get(guidata[c, :viewylimits])
         if keymatch(event, panleft)
-            bb = panx(bb, -0.1, limits)
+            viewx = pan(viewx, -0.1, viewxlimits)
         elseif keymatch(event, panright)
-            bb = panx(bb,  0.1, limits)
+            viewx = pan(viewx,  0.1, viewxlimits)
         elseif keymatch(event, panup)
-            bb = pany(bb, -0.1, limits)
+            viewy = pan(viewy, -0.1, viewylimits)
         elseif keymatch(event, pandown)
-            bb = pany(bb,  0.1, limits)
+            viewy = pan(viewy,  0.1, viewylimits)
         elseif keymatch(event, panleft_big)
-            bb = panx(bb, -1, limits)
+            viewx = pan(viewx, -1, viewxlimits)
         elseif keymatch(event, panright_big)
-            bb = panx(bb,  1, limits)
+            viewx = pan(viewx,  1, viewxlimits)
         elseif keymatch(event, panup_big)
-            bb = pany(bb, -1, limits)
+            viewy = pan(viewy, -1, viewylimits)
         elseif keymatch(event, pandown_big)
-            bb = pany(bb,  1, limits)
+            viewy = pan(viewy,  1, viewylimits)
         end
-        if bb != bb0
-            Main.GtkUtilities.guidata[c, :viewbb] = bb
-            draw(c)
-        end
+        set!(viewx_s, viewx)
+        set!(viewy_s, viewy)
+        nothing
     end
 end
 
@@ -181,9 +248,7 @@ For important additional information, see `add_pan_key`.
 Example:
 ```
     c = @Canvas()
-    bb = BoundingBox(0,1,0,1)
-    guidata[c, :viewlimits] = bb      # the "outer" limits of the plot
-    guidata[c, :viewbb] = bb          # set the initial view to the whole view
+    panzoom(c, (0,1), (0,1))
     id = add_pan_mouse(c)
 ```
 """ ->
@@ -192,18 +257,20 @@ function add_pan_mouse(c;
                        panvert  = 0)
     add_events(c, SCROLL)
     signal_connect(c, :scroll_event) do widget, event
-        bb     = Main.GtkUtilities.guidata[c, :viewbb]
-        limits = Main.GtkUtilities.guidata[c, :viewlimits]
-        bb0 = bb
+        viewx_s = guidata[c, :viewx]
+        viewy_s = guidata[c, :viewy]
+        viewx, viewy = get(viewx_s), get(viewy_s)
+        viewxlimits = get(guidata[c, :viewxlimits])
+        viewylimits = get(guidata[c, :viewylimits])
+        s = 0.1*scrollpm(event.direction)
         if     event.state == @compat(UInt32(panhoriz))
-            bb = panx(bb, 0.1*scrollpm(event.direction), limits)
+            viewx = pan(viewx, s, viewxlimits)
         elseif event.state == @compat(UInt32(panvert))
-            bb = pany(bb, 0.1*scrollpm(event.direction), limits)
+            viewy = pan(viewy, s, viewylimits)
         end
-        if bb != bb0
-            Main.GtkUtilities.guidata[c, :viewbb] = bb
-            draw(c)
-        end
+        set!(viewx_s, viewx)
+        set!(viewy_s, viewy)
+        nothing
     end
 end
 
@@ -231,9 +298,7 @@ For important additional information, see `add_pan_key`.
 Example:
 ```
     c = @Canvas()
-    bb = BoundingBox(0,1,0,1)
-    guidata[c, :viewlimits] = bb      # the "outer" limits of the plot
-    guidata[c, :viewbb] = bb          # set the initial view to the whole view
+    panzoom(c, (0,1), (0,1))
     id = add_zoom_key(c)
 ```
 """ ->
@@ -244,18 +309,23 @@ function add_zoom_key(c;
     setproperty!(c, :can_focus, true)
     setproperty!(c, :has_focus, true)
     signal_connect(c, :key_press_event) do widget, event
-        bb     = Main.GtkUtilities.guidata[c, :viewbb]
-        limits = Main.GtkUtilities.guidata[c, :viewlimits]
-        bb0 = bb
+        viewx_s = guidata[c, :viewx]
+        viewy_s = guidata[c, :viewy]
+        viewx, viewy = get(viewx_s), get(viewy_s)
+        viewxlimits = get(guidata[c, :viewxlimits])
+        viewylimits = get(guidata[c, :viewylimits])
+
+        s = 1.0
         if keymatch(event, in)
-            bb = zoom(bb, 0.5, limits)
+            s = 0.5
         elseif keymatch(event, out)
-            bb = zoom(bb, 2.0, limits)
+            s = 2.0
         end
-        if bb != bb0
-            Main.GtkUtilities.guidata[c, :viewbb] = bb
-            draw(c)
-        end
+        viewx = zoom(viewx, s, viewxlimits)
+        viewy = zoom(viewy, s, viewylimits)
+        set!(viewx_s, viewx)
+        set!(viewy_s, viewy)
+        nothing
     end
 end
 
@@ -283,9 +353,7 @@ For important additional information, see `add_pan_key`.
 Example:
 ```
     c = @Canvas()
-    bb = BoundingBox(0,1,0,1)
-    guidata[c, :viewlimits] = bb      # the "outer" limits of the plot
-    guidata[c, :viewbb] = bb          # set the initial view to the whole view
+    panzoom(c, (0,1), (0,1))
     id = add_zoom_mouse(c)
 ```
 """ ->
@@ -295,9 +363,11 @@ function add_zoom_mouse(c;
     add_events(c, SCROLL)
     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
     signal_connect(c, :scroll_event) do widget, event
-        bb     = Main.GtkUtilities.guidata[c, :viewbb]
-        limits = Main.GtkUtilities.guidata[c, :viewlimits]
-        bb0 = bb
+        viewx_s = guidata[c, :viewx]
+        viewy_s = guidata[c, :viewy]
+        viewx, viewy = get(viewx_s), get(viewy_s)
+        viewxlimits = get(guidata[c, :viewxlimits])
+        viewylimits = get(guidata[c, :viewylimits])
         if event.state == @compat(UInt32(mod))
             s = 0.5
             if event.direction == DOWN
@@ -307,17 +377,18 @@ function add_zoom_mouse(c;
                 w, h = width(c), height(c)
                 fx, fy = event.x/w, event.y/h
                 w, h = width(bb), height(bb)
-                centerx, centery = bb.xmin+fx*w, bb.ymin+fy*h
+                centerx, centery = viewx.min+fx*w, viewy.min+fy*h
                 wbb, hbb = s*w, s*h
-                bb = interior(BoundingBox(centerx-fx*wbb,centerx+(1-fx)*wbb,centery-fy*hbb,centery+(1-fy)*hbb), limits)
+                viewx = interior(Interval(centerx-fx*wbb,centerx+(1-fx)*wbb), viewxlimits)
+                viewy = interior(Interval(centery-fy*hbb,centery+(1-fy)*hbb), viewylimits)
             elseif focus == :center
-                bb = zoom(bb, s, limits)
+                viewx = zoom(viewx, s, viewxlimits)
+                viewy = zoom(viewy, s, viewylimits)
             end
         end
-        if bb != bb0
-            Main.GtkUtilities.guidata[c, :viewbb] = bb
-            draw(c)
-        end
+        set!(viewx_s, viewx)
+        set!(viewy_s, viewy)
+        nothing
     end
 end
 
