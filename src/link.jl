@@ -9,7 +9,10 @@ export
     link,
     get,
     set!,
-    set_quietly!
+    set_quietly!,
+    lLabel,
+    lEntry,
+    lScale
 
 
 abstract AbstractState{T}
@@ -86,6 +89,11 @@ end
 
 widget(w::AbstractLinkedWidget) = w.widget
 id(w::AbstractLinkedWidget) = w.id
+
+Gtk.getproperty{T}(w::AbstractLinkedWidget, s, ::Type{T}) = getproperty(widget(w), s, T)
+Gtk.setproperty!(w::AbstractLinkedWidget, s, val) = (setproperty!(widget(w), s, val); w)
+Base.push!(c::Gtk.GtkRadioButtonGroup, w::LinkedWidget) = push!(c, widget(w))  # ambiguity
+Base.push!(c::Gtk.GtkContainer, w::LinkedWidget) = push!(c, widget(w))
 
 @doc """
 `set(w, val)` sets the value of the linked widget `w` and fires
@@ -170,6 +178,11 @@ function _set!{T,W<:Label}(w::LinkedWidget{T,W}, value)
     setproperty!(w.widget, :label, string(value))
 end
 
+function lLabel(state::AbstractState)
+    lbl = @Label(string(get(state)))
+    link(state, lbl)
+end
+
 ## Entry
 
 function create_callback{T,W<:Entry}(val::AbstractState{T}, w::LinkedWidget{T,W})
@@ -194,6 +207,11 @@ end
 
 emit{T,W<:Entry}(w::LinkedWidget{T,W}) = signal_emit(w.widget, :activate, Void)
 
+function lEntry(state::AbstractState; kwargs...)
+    e = @Entry(;kwargs...)
+    link(state, e)
+end
+
 ## Scale
 
 # To avoid a segfault, we have to use a low-level approach. See Gtk issue #161
@@ -217,6 +235,11 @@ end
 function _set!{T,W<:Scale}(w::LinkedWidget{T,W}, value)
     adj = @Adjustment(w.widget)
     setproperty!(adj, :value, value)
+end
+
+function lScale(state::AbstractState, args...)
+    sc = @Scale(args...)
+    link(state, sc)
 end
 
 end

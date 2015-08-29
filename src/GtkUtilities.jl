@@ -19,6 +19,9 @@ export
     get,
     set!,
     set_quietly!,
+    lLabel,
+    lEntry,
+    lScale,
     # Rubberband
     rubberband_start,
     # PanZoom

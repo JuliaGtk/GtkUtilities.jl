@@ -1,43 +1,40 @@
 using GtkUtilities, Gtk.ShortNames, Cairo, GtkUtilities.Graphics
 using Base.Test
 
-e = @Entry()
+state = State(7)
+e = lEntry(state)
 setproperty!(e, :name, "entry")
-sc = @Scale(false, 1:10)
+sc = lScale(state, :h, 1:10)
 setproperty!(sc, :name, "scale")
-hbox = @Box(:v)
-win = @Window(hbox, "Hi there!")
-push!(hbox, e)
-push!(hbox, sc)
+box = @Box(:v)
+win = @Window(box, "Linked")
+push!(box, e)
+push!(box, sc)
 showall(win)
 
-state = State(7)
-elink  = link(state, e)
-sclink = link(state, sc)
 @test get(state)  == 7
-@test get(elink)  == 7
-@test get(sclink) == 7
+@test get(e)  == 7
+@test get(sc) == 7
 io = IOBuffer()
 show(io, state)
 @test takebuf_string(io) == "State(7,\"entry\",\"scale\")"
 set!(state, 5)
 @test get(state)  == 5
-@test get(elink)  == 5
-@test get(sclink) == 5
-set!(elink, 9)
+@test get(e)  == 5
+@test get(sc) == 5
+set!(e, 9)
 @test get(state)  == 9
-@test get(elink)  == 9
-@test get(sclink) == 9
-set!(sclink, 4)
+@test get(e)  == 9
+@test get(sc) == 9
+set!(sc, 4)
 @test get(state)  == 4
-@test get(elink)  == 4
-@test get(sclink) == 4
+@test get(e)  == 4
+@test get(sc) == 4
 
-l = @Label("hello")
-s = State("world")
-llink = link(s, l)
-@test get(llink) == "world"
-set!(llink, "Gtk")
+s = State("hello")
+l = lLabel(s)
+@test get(l) == "hello"
+set!(l, "Gtk")
 @test get(s) == "Gtk"
 
 
