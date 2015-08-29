@@ -54,7 +54,7 @@ end
 function set!{T}(state::State{T}, value)
     state.value = value
     for w in state.widgets
-        set_quietly!(w, value)
+        set_quietly!(w, state.value)
     end
     for c in state.canvases
         draw(c)
@@ -68,7 +68,7 @@ function set!{T}(state::State{T}, widget::AbstractLinkedWidget)
     state.value = value
     for w in state.widgets
         w == widget && continue
-        set_quietly!(w, value)
+        set_quietly!(w, state.value)
     end
     for c in state.canvases
         draw(c)
@@ -196,11 +196,16 @@ emit{T,W<:Entry}(w::LinkedWidget{T,W}) = signal_emit(w.widget, :activate, Void)
 
 ## Scale
 
+# To avoid a segfault, we have to use a low-level approach. See Gtk issue #161
+function scale_cb(scaleptr::Ptr, state)
+    widget = convert(Scale, scaleptr)
+    v = G_.value(widget)
+    set!(state, v)
+    nothing
+end
+
 function create_callback{T,W<:Scale}(val::AbstractState{T}, w::LinkedWidget{T,W})
-    signal_connect(w.widget, "value-changed") do widget
-#        @schedule set!(val, w)    # Gtk.jl #161
-        set!(val, w)
-    end
+    signal_connect(scale_cb, w.widget, "value-changed", Void, (), false, val)
 end
 
 function Base.get{T,W<:Scale}(w::LinkedWidget{T,W})
