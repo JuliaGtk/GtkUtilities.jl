@@ -2,7 +2,7 @@ VERSION >= v"0.4.0-dev+6521" && __precompile__()
 
 module GtkUtilities
 
-using Cairo, Gtk.ShortNames
+using Cairo, Gtk.ShortNames, Colors
 
 if VERSION < v"0.4.0-dev"
     using Docile, Base.Graphics
@@ -42,6 +42,12 @@ include("rubberband.jl")
 include("panzoom.jl")
 using .PanZoom
 import .PanZoom: interior, fullview   # for extensions
+
+Base.copy!{C<:Colorant}(ctx::CairoContext, img::AbstractArray{C}) = image(ctx, image_surface(img), 0, 0, width(ctx), height(ctx))
+Base.copy!(c::Canvas, img) = copy!(getgc(c), img)
+
+image_surface{C<:Color}(img::AbstractArray{C}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{RGB24}, img)), Cairo.FORMAT_RGB24, flipxy=false)
+image_surface{C<:Colorant}(img::AbstractArray{C}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{ARGB32}, img)), Cairo.FORMAT_ARGB32, flipxy=false)
 
 @doc """
 Summary of features in GtkUtilities:
