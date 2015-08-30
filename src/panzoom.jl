@@ -201,11 +201,10 @@ function add_pan_key(c;
     setproperty!(c, :can_focus, true)
     setproperty!(c, :has_focus, true)
     signal_connect(c, :key_press_event) do widget, event
-        viewx_s = guidata[c, :viewx]
-        viewy_s = guidata[c, :viewy]
-        viewx, viewy = get(viewx_s), get(viewy_s)
-        viewxlimits = get(guidata[c, :viewxlimits])
-        viewylimits = get(guidata[c, :viewylimits])
+        viewx = guidata[c, :viewx]
+        viewy = guidata[c, :viewy]
+        viewxlimits = guidata[c, :viewxlimits]
+        viewylimits = guidata[c, :viewylimits]
         if keymatch(event, panleft)
             viewx = pan(viewx, -0.1, viewxlimits)
         elseif keymatch(event, panright)
@@ -223,8 +222,8 @@ function add_pan_key(c;
         elseif keymatch(event, pandown_big)
             viewy = pan(viewy,  1, viewylimits)
         end
-        set!(viewx_s, viewx)
-        set!(viewy_s, viewy)
+        guidata[c, :viewx] = viewx
+        guidata[c, :viewy] = viewy
         nothing
     end
 end
@@ -257,19 +256,18 @@ function add_pan_mouse(c;
                        panvert  = 0)
     add_events(c, SCROLL)
     signal_connect(c, :scroll_event) do widget, event
-        viewx_s = guidata[c, :viewx]
-        viewy_s = guidata[c, :viewy]
-        viewx, viewy = get(viewx_s), get(viewy_s)
-        viewxlimits = get(guidata[c, :viewxlimits])
-        viewylimits = get(guidata[c, :viewylimits])
+        viewx = guidata[c, :viewx]
+        viewy = guidata[c, :viewy]
+        viewxlimits = guidata[c, :viewxlimits]
+        viewylimits = guidata[c, :viewylimits]
         s = 0.1*scrollpm(event.direction)
         if     event.state == @compat(UInt32(panhoriz))
             viewx = pan(viewx, s, viewxlimits)
         elseif event.state == @compat(UInt32(panvert))
             viewy = pan(viewy, s, viewylimits)
         end
-        set!(viewx_s, viewx)
-        set!(viewy_s, viewy)
+        guidata[c, :viewx] = viewx
+        guidata[c, :viewy] = viewy
         nothing
     end
 end
@@ -309,12 +307,10 @@ function add_zoom_key(c;
     setproperty!(c, :can_focus, true)
     setproperty!(c, :has_focus, true)
     signal_connect(c, :key_press_event) do widget, event
-        viewx_s = guidata[c, :viewx]
-        viewy_s = guidata[c, :viewy]
-        viewx, viewy = get(viewx_s), get(viewy_s)
-        viewxlimits = get(guidata[c, :viewxlimits])
-        viewylimits = get(guidata[c, :viewylimits])
-
+        viewx = guidata[c, :viewx]
+        viewy = guidata[c, :viewy]
+        viewxlimits = guidata[c, :viewxlimits]
+        viewylimits = guidata[c, :viewylimits]
         s = 1.0
         if keymatch(event, in)
             s = 0.5
@@ -323,8 +319,8 @@ function add_zoom_key(c;
         end
         viewx = zoom(viewx, s, viewxlimits)
         viewy = zoom(viewy, s, viewylimits)
-        set!(viewx_s, viewx)
-        set!(viewy_s, viewy)
+        guidata[c, :viewx] = viewx
+        guidata[c, :viewy] = viewy
         nothing
     end
 end
@@ -363,11 +359,10 @@ function add_zoom_mouse(c;
     add_events(c, SCROLL)
     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
     signal_connect(c, :scroll_event) do widget, event
-        viewx_s = guidata[c, :viewx]
-        viewy_s = guidata[c, :viewy]
-        viewx, viewy = get(viewx_s), get(viewy_s)
-        viewxlimits = get(guidata[c, :viewxlimits])
-        viewylimits = get(guidata[c, :viewylimits])
+        viewx = guidata[c, :viewx]
+        viewy = guidata[c, :viewy]
+        viewxlimits = guidata[c, :viewxlimits]
+        viewylimits = guidata[c, :viewylimits]
         if event.state == @compat(UInt32(mod))
             s = 0.5
             if event.direction == DOWN
@@ -376,7 +371,7 @@ function add_zoom_mouse(c;
             if focus == :pointer
                 w, h = width(c), height(c)
                 fx, fy = event.x/w, event.y/h
-                w, h = width(bb), height(bb)
+                w, h = width(viewx), width(viewy)
                 centerx, centery = viewx.min+fx*w, viewy.min+fy*h
                 wbb, hbb = s*w, s*h
                 viewx = interior(Interval(centerx-fx*wbb,centerx+(1-fx)*wbb), viewxlimits)
@@ -386,8 +381,8 @@ function add_zoom_mouse(c;
                 viewy = zoom(viewy, s, viewylimits)
             end
         end
-        set!(viewx_s, viewx)
-        set!(viewy_s, viewy)
+        guidata[c, :viewx] = viewx
+        guidata[c, :viewy] = viewy
         nothing
     end
 end

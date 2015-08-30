@@ -4,9 +4,9 @@ using GtkUtilities, GtkUtilities.Graphics
 c = @Canvas()
 win = @Window(c, "RubberBandCanvas")
 draw(c) do widget
-    ctx = getgc(c)
-    h = height(c)
-    w = width(c)
+    ctx = getgc(widget)
+    h = height(widget)
+    w = width(widget)
     # Paint red rectangle
     rectangle(ctx, 0, 0, w, h/2)
     set_source_rgb(ctx, 1, 0, 0)
@@ -24,7 +24,7 @@ end
 # Set up a rubberband-on-click
 c.mouse.button1press = (widget, event) -> begin
     if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
-        rubberband_start(c, event.x, event.y, (c, bb) -> @show bb)
+        rubberband_start(widget, event.x, event.y, (widget, bb) -> @show bb)
     end
 end
 

@@ -34,10 +34,10 @@ export
     add_zoom_key,
     add_zoom_mouse
 
-include("guidata.jl")
-using .GuiData
 include("link.jl")
 using .Link
+include("guidata.jl")
+using .GuiData
 include("rubberband.jl")
 include("panzoom.jl")
 using .PanZoom

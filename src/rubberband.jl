@@ -67,6 +67,7 @@ function rubberband_start(c::Canvas, x, y, callback_done::Function; minpixels::I
     callbacks_old = (c.mouse.button1motion, c.mouse.button1release)
     c.mouse.button1motion = (c, event) -> rubberband_move(c, rb, event.x, event.y, ctxcopy)
     c.mouse.button1release = (c, event) -> rubberband_stop(c, rb, event.x, event.y, ctxcopy, callbacks_old, callback_done)
+    nothing
 end
 
 function rubberband_move(c::Canvas, rb::RubberBand, x, y, ctxcopy)

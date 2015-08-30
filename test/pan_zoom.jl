@@ -5,10 +5,10 @@ c = @Canvas()
 win = @Window(c, "PanZoomCanvas")
 panzoom(c, (0,1), (0,1))
 draw(c) do widget
-    ctx = getgc(c)
-    h = height(c)
-    w = width(c)
-    xview, yview = get(guidata[c, :viewx]), get(guidata[c, :viewy])
+    ctx = getgc(widget)
+    h = height(widget)
+    w = width(widget)
+    xview, yview = guidata[widget, :viewx], guidata[widget, :viewy]
     set_coords(ctx, BoundingBox(0, w, 0, h), BoundingBox(xview.min, xview.max, yview.min, yview.max))
     # Paint red rectangle
     rectangle(ctx, 0, 0, 0.5, 0.5)
@@ -39,10 +39,10 @@ add_zoom_mouse(c)
 # with a double-click
 c.mouse.button1press = (widget, event) -> begin
     if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
-        rubberband_start(c, event.x, event.y, (c, bb) -> (set!(guidata[c, :viewx], (bb.xmin,bb.xmax)); set!(guidata[c, :viewy], (bb.ymin,bb.ymax))))
+        rubberband_start(widget, event.x, event.y, (widget, bb) -> (guidata[widget, :viewx] = (bb.xmin,bb.xmax); guidata[widget, :viewy] = (bb.ymin,bb.ymax)))
     elseif event.event_type == Gtk.GdkEventType.DOUBLE_BUTTON_PRESS
-        set!(guidata[c, :viewx], get(guidata[c, :viewxlimits]))
-        set!(guidata[c, :viewy], get(guidata[c, :viewylimits]))
+        guidata[widget, :viewx] = guidata[c, :viewxlimits]
+        guidata[widget, :viewy] = guidata[c, :viewylimits]
     end
 end
 

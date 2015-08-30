@@ -2,11 +2,12 @@ module GuiData
 
 using Gtk, Compat
 if VERSION < v"0.4.0-dev"
-    # using Docile
     macro doc(ex)
         esc(ex.args[2])
     end
 end
+
+import ..GtkUtilities.Link: AbstractState, set!
 
 export guidata
 
@@ -18,11 +19,21 @@ GUIData() = GUIData(Dict{Any,Dict{Symbol,Any}}())
 
 const empty_guidata = Dict{Symbol,Any}()
 
+# guidata[w, :name] strips the State wrapper, unless requested by keyword
+# Likewise, guidata[w, :name] = val set!s the State rather than replacing it,
+# unless requested by keyword.
+
 Base.getindex(wd::GUIData, w) = wd.data[w]
-Base.getindex(wd::GUIData, w, s::Symbol) = wd.data[w][s]
+function Base.getindex(wd::GUIData, w, s::Symbol; raw::Bool=false)
+    ret = wd.data[w][s]
+    if !raw && isa(ret, AbstractState)
+        return get(ret)
+    end
+    ret
+end
 Base.getindex{T}(wd::GUIData{T}, ws::@compat(Tuple{T,Symbol})) = wd[ws[1], ws[2]]
 
-function Base.setindex!(wd::GUIData, val, w, s::Symbol)
+function Base.setindex!(wd::GUIData, val, w, s::Symbol; raw::Bool=false)
     d = get(wd.data, w, empty_guidata)
     if d == empty_guidata
         d = wd.data[w] = Dict{Symbol,Any}()
@@ -32,14 +43,25 @@ function Base.setindex!(wd::GUIData, val, w, s::Symbol)
             end
         end
     end
+    if !raw
+        obj = get(d, s, nothing)
+        if isa(obj, AbstractState)
+            set!(obj, val)
+            return val
+        end
+    end
     d[s] = val
 end
 
 Base.setindex!{T}(wd::GUIData, val, ws::@compat(Tuple{T,Symbol})) = wd.data[ws[1],ws[2]] = val
 
-function Base.get{T}(wd::GUIData, ws::@compat(Tuple{T,Symbol}), default)
+function Base.get{T}(wd::GUIData, ws::@compat(Tuple{T,Symbol}), default; raw::Bool=false)
     d = get(wd.data, ws[1], empty_guidata)
-    d == empty_guidata ? default : get(d, ws[2], default)
+    val = d == empty_guidata ? default : get(d, ws[2], default)
+    if !raw && isa(val, AbstractState)
+        return get(val)
+    end
+    val
 end
 
 function Base.delete!{T}(wd::GUIData, ws::@compat(Tuple{T,Symbol}))
@@ -76,8 +98,18 @@ delete!(guidata, w)            # deletes all data associated with w
 Example:
 
     c = @Canvas()
-    bb = BoundingBox(0, 1, 0, 1)
-    guidata[c, :zoombb] = bb
+    panzoom(c, (0,1), (0,1))
+    viewx = guidata[c, :viewx]
+```
+
+Note that if `:name` corresponds to a `State` object, `guidata` will
+get/set the **value** of the State object, transparently stripping the
+wrapper itself.  This means that you change the value without
+destroying any links you have set up.  If you need the state object
+itself, use the `raw` keyword:
+```jl
+    state = getindex(guidata, c, :name; raw=true)     # retrieves a state object
+    setindex!(guidata, newstate, c, :name; raw=true)  # replaces the old state object
 ```
 """ -> guidata
 
