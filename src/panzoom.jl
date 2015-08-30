@@ -15,7 +15,7 @@ else
 end
 
 using ..GtkUtilities.Link
-import ..guidata
+import ..guidata, ..trigger, ..rubberband_start
 import ..Link: AbstractState
 
 typealias VecLike Union{AbstractVector,Tuple}
@@ -113,7 +113,7 @@ panzoom(c, viewxlimits, viewylimits)
 panzoom(c, viewxlimits, viewylimits, viewx, viewy)
 ```
 sets up the Canvas `c` for panning and zooming. The arguments may be
-2-tuples, 2-vectors, or Intervals.
+2-tuples, 2-vectors, Intervals, or `nothing`.
 
 `panzoom` creates the `:view[x|y]`, `:view[x|y]limits` properties of
 `c`:
@@ -126,6 +126,7 @@ sets up the Canvas `c` for panning and zooming. The arguments may be
 - `:viewxlimits`, `:viewylimits` encode the maximum allowable viewing
     region; in most cases these will also be `State{Interval}`s, but
     any object that supports `interior` and `fullview` may be used.
+    Use `nothing` to indicate unlimited range.
 
 """ ->
 panzoom(c, viewxlimits::Interval, viewylimits::Interval) =
@@ -133,7 +134,7 @@ panzoom(c, viewxlimits::Interval, viewylimits::Interval) =
 
 panzoom(c, viewxlimits::VecLike, viewylimits::VecLike) = panzoom(c, iv(viewxlimits), iv(viewylimits))
 
-panzoom(c, viewxlimits::VecLike, viewylimits::VecLike, viewx::VecLike, viewy::VecLike) = panzoom(c, iv(viewxlimits), iv(viewylimits), iv(viewx), iv(viewy))
+panzoom(c, viewxlimits::Union{VecLike,Void}, viewylimits::Union{VecLike,Void}, viewx::VecLike, viewy::VecLike) = panzoom(c, State(iv(viewxlimits)), State(iv(viewylimits)), State(iv(viewx)), State(iv(viewy)))
 
 function panzoom(c, viewxlimits::AbstractState, viewylimits::AbstractState, viewx::AbstractState = similar(viewxlimits), viewy::AbstractState = similar(viewylimits))
     guidata[c, :viewx] = viewx
@@ -146,7 +147,7 @@ function panzoom(c, viewxlimits::AbstractState, viewylimits::AbstractState, view
 end
 
 iv(x) = Interval{Float64}(x...)
-
+iv(x::Void) = x
 
 pan(iv, frac::Real, limits) = interior(shift(iv, frac*width(iv)), limits)
 
@@ -326,16 +327,21 @@ function add_zoom_key(c;
 end
 
 @doc """
-`id = add_zoom_mouse(c; kwargs...)` initializes zooming-by-mouse-scroll
-for a canvas `c`.
+`id = add_zoom_mouse(c; kwargs...)` initializes zooming-by-rubberband
+selection and zooming-by-mouse-scroll for a canvas `c`.
 
-Zooming is selected by a modifier key, which is configurable through
-keyword arguments.  The keywords and their defaults are:
+Zooming-by-scroll is accompanied by a modifier key, which is
+configurable through keyword arguments.  The keywords and their
+defaults are:
 ```
-    mod       = CONTROL,     # hold down the ctrl-key
+    mod       = CONTROL,     # hold down the ctrl-key while scrolling
     focus     = :pointer
+    factor    = 2.0
+    initiate  = BUTTON_PRESS # start a rubberband selection for zoom
+    reset     = DOUBLE_BUTTON_PRESS    # go back to original limits
 ```
-CONTROL is defined in `Gtk.GConstants.GdkModifierType`.
+CONTROL, BUTTON_PRESS, and DOUBLE_BUTTON_PRESS are defined in
+`Gtk.GConstants.GdkModifierType`.
 
 The `focus` keyword controls how the zooming progresses as you scroll
 the mouse wheel. `:pointer` means that whatever feature of the canvas
@@ -352,39 +358,81 @@ Example:
     panzoom(c, (0,1), (0,1))
     id = add_zoom_mouse(c)
 ```
+`id` will be a single integer if `reset = nothing` (which disables
+resetting), or a 2-tuple corresponding to the handlers for scroll and
+reset, respectively.
 """ ->
 function add_zoom_mouse(c;
                         mod = CONTROL,
-                        focus::Symbol = :pointer)
+                        focus::Symbol = :pointer,
+                        factor = 2.0,
+                        initiate = BUTTON_PRESS,
+                        reset = DOUBLE_BUTTON_PRESS)
     add_events(c, SCROLL)
     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
-    signal_connect(c, :scroll_event) do widget, event
-        viewx = guidata[c, :viewx]
-        viewy = guidata[c, :viewy]
-        viewxlimits = guidata[c, :viewxlimits]
-        viewylimits = guidata[c, :viewylimits]
-        if event.state == @compat(UInt32(mod))
-            s = 0.5
-            if event.direction == DOWN
-                s = 1/s
-            end
-            if focus == :pointer
-                w, h = width(c), height(c)
-                fx, fy = event.x/w, event.y/h
-                w, h = width(viewx), width(viewy)
-                centerx, centery = viewx.min+fx*w, viewy.min+fy*h
-                wbb, hbb = s*w, s*h
-                viewx = interior(Interval(centerx-fx*wbb,centerx+(1-fx)*wbb), viewxlimits)
-                viewy = interior(Interval(centery-fy*hbb,centery+(1-fy)*hbb), viewylimits)
-            elseif focus == :center
-                viewx = zoom(viewx, s, viewxlimits)
-                viewy = zoom(viewy, s, viewylimits)
-            end
-        end
-        guidata[c, :viewx] = viewx
-        guidata[c, :viewy] = viewy
-        nothing
-    end
+    id1 = signal_connect(zoom_mouse_button_cb, c, "button-press-event", Cint, (Ptr{Gtk.GdkEventButton},), false, (initiate,reset))
+    id2 = signal_connect(zoom_mouse_scroll_cb, c, "scroll-event", Cint, (Ptr{Gtk.GdkEventScroll},), false, (mod, focus, factor))
+    (id1, id2)
 end
 
+function zoom_mouse_button_cb(widgetp::Ptr, eventp::Ptr, actions)
+    widget = convert(Gtk.GtkCanvas, widgetp)
+    event = unsafe_load(eventp)
+    initiate, reset = actions
+    if event.event_type == initiate
+        rubberband_start(widget, event.x, event.y, (widget, bb) -> (guidata[widget, :viewx] = (bb.xmin,bb.xmax); guidata[widget, :viewy] = (bb.ymin,bb.ymax)))
+        return Cint(1)
+    elseif event.event_type == reset
+        zoom_reset(widget)
+        return Cint(1)
+    end
+    return Cint(0)
 end
+
+function zoom_mouse_scroll_cb(widgetp::Ptr, eventp::Ptr, kws)
+    widget = convert(Gtk.GtkCanvas, widgetp)
+    event = unsafe_load(eventp)
+    mod, focus, factor = kws
+    if event.state == @compat(UInt32(mod))
+        s = factor
+        if event.direction == UP
+            s = 1/s
+        end
+        zoom_focus(widget, s, event; focus=focus)
+        return Cint(1)
+    end
+    return Cint(0)
+end
+
+function zoom_focus(c, s, event; focus::Symbol=:pointer)
+    viewx = guidata[c, :viewx]
+    viewy = guidata[c, :viewy]
+    viewxlimits = guidata[c, :viewxlimits]
+    viewylimits = guidata[c, :viewylimits]
+    if focus == :pointer
+        w, h = width(c), height(c)
+        fx, fy = event.x/w, event.y/h
+        w, h = width(viewx), width(viewy)
+        centerx, centery = viewx.min+fx*w, viewy.min+fy*h
+        wbb, hbb = s*w, s*h
+        viewx = interior(Interval(centerx-fx*wbb,centerx+(1-fx)*wbb), viewxlimits)
+        viewy = interior(Interval(centery-fy*hbb,centery+(1-fy)*hbb), viewylimits)
+    elseif focus == :center
+        viewx = zoom(viewx, s, viewxlimits)
+        viewy = zoom(viewy, s, viewylimits)
+    end
+    getindex(guidata, c, :viewx; raw=true).value = viewx
+    getindex(guidata, c, :viewy; raw=true).value = viewy
+    trigger(c, (:viewx, :viewy))
+    c
+end
+
+function zoom_reset(c)
+    vxlim, vylim = guidata[c, :viewxlimits], guidata[c, :viewylimits]
+    vxlim != nothing && (getindex(guidata, c, :viewx; raw=true).value = vxlim)
+    vylim != nothing && (getindex(guidata, c, :viewy; raw=true).value = vylim)
+    trigger(c, (:viewx, :viewy))
+    c
+end
+
+end # module

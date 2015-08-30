@@ -21,7 +21,10 @@ draw(c) do widget
     fill(ctx)
 end
 
-# Set up a rubberband-on-click
+# Set up a rubberband-on-click. Note that `panzoom.jl` shows an
+# alternative way to set this up, one that doesn't mess with
+# any pre-existing `button1press` function that the user
+# may have defined.
 c.mouse.button1press = (widget, event) -> begin
     if event.event_type == Gtk.GdkEventType.BUTTON_PRESS
         rubberband_start(widget, event.x, event.y, (widget, bb) -> @show bb)
