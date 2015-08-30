@@ -7,9 +7,9 @@ if VERSION < v"0.4.0-dev"
     end
 end
 
-import ..GtkUtilities.Link: AbstractState, set!
+import ..GtkUtilities.Link: AbstractState, set!, set_quietly!
 
-export guidata
+export guidata, trigger
 
 immutable GUIData{T}
     data::Dict{T,Dict{Symbol,Any}}
@@ -74,6 +74,39 @@ Base.delete!(wd::GUIData, w) = delete!(wd.data, w)
 Base.show(io::IO, wd::GUIData) = print(io, "GUIdata")
 
 const guidata = GUIData()
+
+@doc """
+`trigger(widgets, symbols)` is used when you want to set several
+state variables simultaneously, but don't want to refresh the screen
+more frequently than necessary. You can set the `.value` parameter of
+the state variables directly, then call `trigger` to synchronize the
+GUI.
+""" ->
+function trigger(widgets, syms)
+    dct = Dict{Gtk.GtkWidget,Any}()
+    canvases = Set{Gtk.GtkCanvas}()
+    for widget in widgets, sym in syms
+        state = get(guidata, (widget, sym), nothing; raw=true)
+        if state != nothing
+            for w in state.widgets
+                dct[w] = get(state)
+            end
+            for c in state.canvases
+                push!(canvases, c)
+            end
+        end
+    end
+    for (w,val) in dct
+        set_quietly!(w, val)
+    end
+    for c in canvases
+        draw(c)
+    end
+end
+
+trigger(widget::Gtk.GtkWidget, sym::Symbol) = trigger((widget,), (sym,))
+trigger(widget::Gtk.GtkWidget, syms)        = trigger((widget,), syms)
+trigger(widgets,               sym::Symbol) = trigger(widgets, (sym,))
 
 @doc """
 Given a widget (Button, Canvas, Window, etc.) or other graphical object

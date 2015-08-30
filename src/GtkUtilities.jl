@@ -11,8 +11,6 @@ else
 end
 
 export
-    # GUIData
-    guidata,
     # Link
     State,
     link,
@@ -22,6 +20,9 @@ export
     lLabel,
     lEntry,
     lScale,
+    # GUIData
+    guidata,
+    trigger,
     # Rubberband
     rubberband_start,
     # PanZoom
