@@ -52,7 +52,10 @@ immutable Interval{T}
 end
 Base.convert{T}(::Type{Interval{T}}, v::Interval{T}) = v
 Base.convert{T}(::Type{Interval{T}}, v::Interval) = Interval{T}(v.min, v.max)
-Base.convert{T}(::Type{Interval{T}}, v::VecLike)  = Interval{T}(v...)
+function Base.convert{T}(::Type{Interval{T}}, v::VecLike)
+    v1, v2 = v[1], v[end]
+    Interval{T}(min(v1,v2), max(v1,v2))
+end
 
 Graphics.width(iv::Interval) = iv.max-iv.min
 (Base.&)(iv1::Interval, iv2::Interval) = Interval(max(iv1.min, iv2.min),
