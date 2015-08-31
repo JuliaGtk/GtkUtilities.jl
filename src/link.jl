@@ -4,6 +4,7 @@ using Gtk.ShortNames
 
 export
     # Types
+    AbstractState,
     State,
     # Functions
     link,
@@ -11,6 +12,8 @@ export
     get,
     set!,
     set_quietly!,
+    widget,
+    id,
     lLabel,
     lEntry,
     lScale

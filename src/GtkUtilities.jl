@@ -12,12 +12,15 @@ end
 
 export
     # Link
+    AbstractState,
     State,
     link,
     disconnect,
     get,
     set!,
     set_quietly!,
+    widget,
+    id,
     lLabel,
     lEntry,
     lScale,
