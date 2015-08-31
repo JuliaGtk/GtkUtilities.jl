@@ -14,6 +14,7 @@ export
     # Link
     State,
     link,
+    disconnect,
     get,
     set!,
     set_quietly!,

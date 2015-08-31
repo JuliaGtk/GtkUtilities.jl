@@ -7,6 +7,7 @@ export
     State,
     # Functions
     link,
+    disconnect,
     get,
     set!,
     set_quietly!,
@@ -155,6 +156,12 @@ function _link{T}(val::AbstractState{T}, w::AbstractLinkedWidget)
     _set!(w, get(val))
     add_widget!(val, w)
     w
+end
+
+function disconnect(val::AbstractState)
+    for w in val.widgets
+        signal_handler_disconnect(w.widget, w.id)
+    end
 end
 
 function Base.show(io::IO, w::LinkedWidget)

@@ -7,7 +7,7 @@ if VERSION < v"0.4.0-dev"
     end
 end
 
-import ..GtkUtilities.Link: AbstractState, set!, set_quietly!
+import ..GtkUtilities.Link: AbstractState, disconnect, set!, set_quietly!
 
 export guidata, trigger
 
@@ -39,7 +39,13 @@ function Base.setindex!(wd::GUIData, val, w, s::Symbol; raw::Bool=false)
         d = wd.data[w] = Dict{Symbol,Any}()
         if isa(w, Gtk.GtkWidget)
             signal_connect(w, "destroy") do widget
-                delete!(wd.data, w)
+                dct = wd.data[widget]
+                for (k,v) in dct
+                    if isa(v, AbstractState)
+                        disconnect(v)
+                    end
+                end
+                delete!(wd.data, widget)
             end
         end
     end
