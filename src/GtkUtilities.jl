@@ -49,7 +49,12 @@ include("panzoom.jl")
 using .PanZoom
 import .PanZoom: interior, fullview   # for extensions
 
-Base.copy!{C<:Colorant}(ctx::CairoContext, img::AbstractArray{C}) = image(ctx, image_surface(img), 0, 0, width(ctx), height(ctx))
+function Base.copy!{C<:Colorant}(ctx::CairoContext, img::AbstractArray{C})
+    save(ctx)
+    Cairo.reset_transform(ctx)
+    image(ctx, image_surface(img), 0, 0, width(ctx), height(ctx))
+    restore(ctx)
+end
 Base.copy!(c::Canvas, img) = copy!(getgc(c), img)
 
 image_surface{C<:Color}(img::AbstractArray{C}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{RGB24}, img)), Cairo.FORMAT_RGB24, flipxy=false)
