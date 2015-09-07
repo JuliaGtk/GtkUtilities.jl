@@ -364,35 +364,42 @@ These behaviors are subject to modification by the canvas'
 
 For important additional information, see `add_pan_key`.
 
+An additional keyword is `user_to_data`, for which you supply
+a function
+```
+    user_to_data_fcn(c, x, y) -> (datax, datay)
+```
+that converts canvas user-coordinates to "data coordinates."
+
 Example:
 ```
     c = @Canvas()
     panzoom(c, (0,1), (0,1))
-    id = add_zoom_mouse(c)
+    idclick, idscroll = add_zoom_mouse(c)
 ```
-`id` will be a single integer if `reset = nothing` (which disables
-resetting), or a 2-tuple corresponding to the handlers for scroll and
-reset, respectively.
+The returned `id`s the handlers for clicking (i.e., rubberband
+selection and resetting) and scrolling, respectively.
 """ ->
 function add_zoom_mouse(c;
                         mod = CONTROL,
                         focus::Symbol = :pointer,
                         factor = 2.0,
                         initiate = BUTTON_PRESS,
-                        reset = DOUBLE_BUTTON_PRESS)
+                        reset = DOUBLE_BUTTON_PRESS,
+                        user_to_data = (c,x,y)->(x,y))
     add_events(c, SCROLL)
     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
-    id1 = signal_connect(zoom_mouse_button_cb, c, "button-press-event", Cint, (Ptr{Gtk.GdkEventButton},), false, (initiate,reset))
-    id2 = signal_connect(zoom_mouse_scroll_cb, c, "scroll-event", Cint, (Ptr{Gtk.GdkEventScroll},), false, (mod, focus, factor))
+    id1 = signal_connect(zoom_mouse_button_cb, c, "button-press-event", Cint, (Ptr{Gtk.GdkEventButton},), false, (initiate,reset,user_to_data))
+    id2 = signal_connect(zoom_mouse_scroll_cb, c, "scroll-event", Cint, (Ptr{Gtk.GdkEventScroll},), false, (mod, focus, factor, user_to_data))
     (id1, id2)
 end
 
 function zoom_mouse_button_cb(widgetp::Ptr, eventp::Ptr, actions)
     widget = convert(Gtk.GtkCanvas, widgetp)
     event = unsafe_load(eventp)
-    initiate, reset = actions
+    initiate, reset, user_to_data = actions
     if event.event_type == initiate
-        rubberband_start(widget, event.x, event.y, (widget, bb) -> (guidata[widget, :viewx] = (bb.xmin,bb.xmax); guidata[widget, :viewy] = (bb.ymin,bb.ymax)))
+        rubberband_start(widget, event.x, event.y, (widget, bb) -> zoom_bb(widget, bb, user_to_data))
         return Cint(1)
     elseif event.event_type == reset
         zoom_reset(widget)
@@ -404,28 +411,28 @@ end
 function zoom_mouse_scroll_cb(widgetp::Ptr, eventp::Ptr, kws)
     widget = convert(Gtk.GtkCanvas, widgetp)
     event = unsafe_load(eventp)
-    mod, focus, factor = kws
+    mod, focus, factor, user_to_data = kws
     if event.state == @compat(UInt32(mod))
         s = factor
         if event.direction == UP
             s = 1/s
         end
-        zoom_focus(widget, s, event; focus=focus)
+        zoom_focus(widget, s, event; focus=focus, user_to_data=user_to_data)
         return Cint(1)
     end
     return Cint(0)
 end
 
-function zoom_focus(c, s, event; focus::Symbol=:pointer)
+function zoom_focus(c, s, event; focus::Symbol=:pointer, user_to_data=(c,x,y)->(x,y))
     viewx = guidata[c, :viewx]
     viewy = guidata[c, :viewy]
     viewxlimits = guidata[c, :viewxlimits]
     viewylimits = guidata[c, :viewylimits]
     if focus == :pointer
-        w, h = width(c), height(c)
-        fx, fy = event.x/w, event.y/h
+        ux, uy = device_to_user(getgc(c), event.x, event.y)
+        centerx, centery = user_to_data(c, ux, uy)
         w, h = width(viewx), width(viewy)
-        centerx, centery = viewx.min+fx*w, viewy.min+fy*h
+        fx, fy = (centerx-viewx.min)/w, (centery-viewy.min)/h
         wbb, hbb = s*w, s*h
         viewx = interior(Interval(centerx-fx*wbb,centerx+(1-fx)*wbb), viewxlimits)
         viewy = interior(Interval(centery-fy*hbb,centery+(1-fy)*hbb), viewylimits)
@@ -439,12 +446,26 @@ function zoom_focus(c, s, event; focus::Symbol=:pointer)
     c
 end
 
-function zoom_reset(c)
-    vxlim, vylim = guidata[c, :viewxlimits], guidata[c, :viewylimits]
-    vxlim != nothing && (getindex(guidata, c, :viewx; raw=true).value = vxlim)
-    vylim != nothing && (getindex(guidata, c, :viewy; raw=true).value = vylim)
-    trigger(c, (:viewx, :viewy))
-    c
+# We don't take the step of setting new coordinates on the Canvas
+# because we need to let the user be in charge of that. (For example,
+# in plots you want to zoom in on the data but leave the axes
+# visible.) But see set_coords below. So we content ourselves with
+function zoom_bb(widget, bb::BoundingBox, user_to_data=(c,x,y)->(x,y))
+    xmin, ymin = user_to_data(widget, bb.xmin, bb.ymin)
+    xmax, ymax = user_to_data(widget, bb.xmax, bb.ymax)
+    getindex(guidata, widget, :viewx; raw=true).value = (xmin, xmax)
+    getindex(guidata, widget, :viewy; raw=true).value = (ymin, ymax)
+    trigger(widget, (:viewx, :viewy))
+    widget
+end
+
+function zoom_reset(widget)
+    vxlim, vylim = guidata[widget, :viewxlimits], guidata[widget, :viewylimits]
+    vxlim != nothing && (getindex(guidata, widget, :viewx; raw=true).value = vxlim)
+    vylim != nothing && (getindex(guidata, widget, :viewy; raw=true).value = vylim)
+    trigger(widget, (:viewx, :viewy))
+    widget
+end
 
 # For completely mysterious reasons, these are borked
 # function Graphics.set_coords(ctx::GraphicsContext, bb::BoundingBox)
