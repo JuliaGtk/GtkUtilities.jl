@@ -445,6 +445,16 @@ function zoom_reset(c)
     vylim != nothing && (getindex(guidata, c, :viewy; raw=true).value = vylim)
     trigger(c, (:viewx, :viewy))
     c
+
+# For completely mysterious reasons, these are borked
+# function Graphics.set_coords(ctx::GraphicsContext, bb::BoundingBox)
+#     set_coords(ctx, BoundingBox(0,width(ctx),0,height(ctx)), bb)
+# end
+# function Graphics.set_coords(widget, bb::BoundingBox)
+#     set_coords(getgc(widget), bb)
+# end
+function Graphics.set_coords(ctx::GraphicsContext, ix::Interval, iy::Interval)
+    set_coords(ctx, BoundingBox(0,width(ctx),0,height(ctx)), BoundingBox(ix.min, ix.max, iy.min, iy.max))
 end
 
 end # module

@@ -3,14 +3,13 @@ using GtkUtilities, GtkUtilities.Graphics
 
 c = @Canvas()
 win = @Window(c, "PanZoomCanvas")
+showall(win)
 panzoom(c, (0,1), (0,1))
 
 draw(c) do widget
-    ctx = getgc(widget)
-    h = height(widget)
-    w = width(widget)
     xview, yview = guidata[widget, :viewx], guidata[widget, :viewy]
-    set_coords(ctx, BoundingBox(0, w, 0, h), BoundingBox(xview.min, xview.max, yview.min, yview.max))
+    ctx = getgc(widget)
+    set_coords(ctx, xview, yview)
     # Paint red rectangle
     rectangle(ctx, 0, 0, 0.5, 0.5)
     set_source_rgb(ctx, 1, 0, 0)
@@ -28,8 +27,6 @@ draw(c) do widget
     set_source_rgb(ctx, 0, 1, 0)
     fill(ctx)
 end
-
-showall(c)
 
 idpan_key    = add_pan_key(c)
 idpan_mouse  = add_pan_mouse(c)

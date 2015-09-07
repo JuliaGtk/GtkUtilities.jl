@@ -37,7 +37,8 @@ export
     add_pan_key,
     add_pan_mouse,
     add_zoom_key,
-    add_zoom_mouse
+    add_zoom_mouse,
+    set_coords
 
 include("link.jl")
 using .Link
