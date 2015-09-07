@@ -112,6 +112,7 @@ fullview(limits::Interval) = limits
 
 @doc """
 ```jl
+panzoom(c)
 panzoom(c, viewxlimits, viewylimits)
 panzoom(c, viewxlimits, viewylimits, viewx, viewy)
 ```
@@ -131,6 +132,8 @@ sets up the Canvas `c` for panning and zooming. The arguments may be
     any object that supports `interior` and `fullview` may be used.
     Use `nothing` to indicate unlimited range.
 
+If `c` is the only argument to `panzoom`, then the current user-coordinate
+limits of `c` are used.
 """ ->
 panzoom(c, viewxlimits::Interval, viewylimits::Interval) =
     panzoom(c, State(viewxlimits), State(viewylimits))
@@ -147,6 +150,12 @@ function panzoom(c, viewxlimits::AbstractState, viewylimits::AbstractState, view
     link(viewx, c)
     link(viewy, c)
     nothing
+end
+
+function panzoom(c)
+    xmin, ymin = device_to_user(c, 0, 0)
+    xmax, ymax = device_to_user(c, width(c), height(c))
+    panzoom(c, (xmin, xmax), (ymin, ymax))
 end
 
 iv(x) = Interval{Float64}(x...)
