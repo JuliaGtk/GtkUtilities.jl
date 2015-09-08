@@ -182,7 +182,9 @@ modifier (like the SHIFT key); `0` means no modifier.
     panleft_big  = (GDK_KEY_Left,SHIFT),
     panright_big = (GDK_KEY_Right,SHIFT),
     panup_big    = (GDK_KEY_Up,SHIFT),
-    pandown_big  = (GDK_KEY_Down,SHIFT))
+    pandown_big  = (GDK_KEY_Down,SHIFT),
+    fliphoriz   = false,
+    flipvert    = false
 ```
 "Regular" panning motions correspond to 10% of the view region; "big"
 panning motions are 100% of the view region, and thus jump by one
@@ -209,7 +211,9 @@ function add_pan_key(c;
                      panleft_big  = (GDK_KEY_Left,SHIFT),
                      panright_big = (GDK_KEY_Right,SHIFT),
                      panup_big    = (GDK_KEY_Up,SHIFT),
-                     pandown_big  = (GDK_KEY_Down,SHIFT))
+                     pandown_big  = (GDK_KEY_Down,SHIFT),
+                     fliphoriz    = false,
+                     flipvert     = false)
     add_events(c, KEY_PRESS)
     setproperty!(c, :can_focus, true)
     setproperty!(c, :has_focus, true)
@@ -218,22 +222,24 @@ function add_pan_key(c;
         viewy = guidata[c, :viewy]
         viewxlimits = guidata[c, :viewxlimits]
         viewylimits = guidata[c, :viewylimits]
+        hsign = fliphoriz ? -1 : 1
+        vsign = flipvert  ? -1 : 1
         if keymatch(event, panleft)
-            viewx = pan(viewx, -0.1, viewxlimits)
+            viewx = pan(viewx, -0.1*hsign, viewxlimits)
         elseif keymatch(event, panright)
-            viewx = pan(viewx,  0.1, viewxlimits)
+            viewx = pan(viewx,  0.1*hsign, viewxlimits)
         elseif keymatch(event, panup)
-            viewy = pan(viewy, -0.1, viewylimits)
+            viewy = pan(viewy, -0.1*vsign, viewylimits)
         elseif keymatch(event, pandown)
-            viewy = pan(viewy,  0.1, viewylimits)
+            viewy = pan(viewy,  0.1*vsign, viewylimits)
         elseif keymatch(event, panleft_big)
-            viewx = pan(viewx, -1, viewxlimits)
+            viewx = pan(viewx, -1*hsign, viewxlimits)
         elseif keymatch(event, panright_big)
-            viewx = pan(viewx,  1, viewxlimits)
+            viewx = pan(viewx,  1*hsign, viewxlimits)
         elseif keymatch(event, panup_big)
-            viewy = pan(viewy, -1, viewylimits)
+            viewy = pan(viewy, -1*vsign, viewylimits)
         elseif keymatch(event, pandown_big)
-            viewy = pan(viewy,  1, viewylimits)
+            viewy = pan(viewy,  1*vsign, viewylimits)
         end
         guidata[c, :viewx] = viewx
         guidata[c, :viewy] = viewy
@@ -251,7 +257,9 @@ Horizontal or vertical panning is selected by modifier keys, which are
 configurable through keyword arguments.  The default settings are:
 ```
     panhoriz = SHIFT,     # hold down the shift key
-    panvert  = 0
+    panvert  = 0,
+    fliphoriz = false,
+    flipvert  = false
 ```
 where 0 means no modifier. SHIFT is defined in `Gtk.GConstants.GdkModifierType`.
 
@@ -266,7 +274,9 @@ Example:
 """ ->
 function add_pan_mouse(c;
                        panhoriz = SHIFT,
-                       panvert  = 0)
+                       panvert  = 0,
+                       fliphoriz = false,
+                       flipvert  = false)
     add_events(c, SCROLL)
     signal_connect(c, :scroll_event) do widget, event
         viewx = guidata[c, :viewx]
@@ -275,9 +285,9 @@ function add_pan_mouse(c;
         viewylimits = guidata[c, :viewylimits]
         s = 0.1*scrollpm(event.direction)
         if     event.state == @compat(UInt32(panhoriz))
-            viewx = pan(viewx, s, viewxlimits)
+            viewx = pan(viewx, (fliphoriz ? -1 : 1) * s, viewxlimits)
         elseif event.state == @compat(UInt32(panvert))
-            viewy = pan(viewy, s, viewylimits)
+            viewy = pan(viewy, (flipvert  ? -1 : 1) * s, viewylimits)
         end
         guidata[c, :viewx] = viewx
         guidata[c, :viewy] = viewy
