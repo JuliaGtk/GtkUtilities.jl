@@ -38,7 +38,8 @@ export
     add_pan_key,
     add_pan_mouse,
     add_zoom_key,
-    add_zoom_mouse
+    add_zoom_mouse,
+    zoom_reset
 
 const ALT = MOD1
 
