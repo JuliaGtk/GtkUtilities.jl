@@ -35,10 +35,8 @@ export
     interior,
     fullview,
     panzoom,
-    add_pan_key,
-    add_pan_mouse,
-    add_zoom_key,
-    add_zoom_mouse,
+    panzoom_key,
+    panzoom_mouse,
     zoom_reset
 
 const ALT = MOD1
@@ -167,7 +165,7 @@ pan(iv, frac::Real, limits) = interior(shift(iv, frac*width(iv)), limits)
 zoom(iv, s::Real, limits) = interior(s*iv, limits)
 
 @doc """
-`id = add_pan_key(c; kwargs...)` initializes panning-by-keypress for a
+`id = panzoom_key(c; kwargs...)` initializes panning-by-keypress for a
 canvas `c`. `c` is expected to have the four `guidata` properties
 described in `panzoom`.
 
@@ -184,8 +182,10 @@ modifier (like the SHIFT key); `0` means no modifier.
     panright_big = (GDK_KEY_Right,SHIFT),
     panup_big    = (GDK_KEY_Up,SHIFT),
     pandown_big  = (GDK_KEY_Down,SHIFT),
-    fliphoriz   = false,
-    flipvert    = false
+    xpanflip     = false,
+    ypanflip     = false
+    zoomin       = (GDK_KEY_Up,  CONTROL)
+    zoomout      = (GDK_KEY_Down,CONTROL)
 ```
 "Regular" panning motions correspond to 10% of the view region; "big"
 panning motions are 100% of the view region, and thus jump by one
@@ -200,11 +200,11 @@ Example:
 ```
     c = @Canvas()
     panzoom(c, (0,1), (0,1))
-    id = add_pan_keys(c)
+    id = panzoom_key(c)
 ```
 The `draw` method for `c` should take account of `:viewbb`.
 """ ->
-function add_pan_key(c;
+function panzoom_key(c;
                      panleft  = (GDK_KEY_Left,0),
                      panright = (GDK_KEY_Right,0),
                      panup    = (GDK_KEY_Up,0),
@@ -213,8 +213,10 @@ function add_pan_key(c;
                      panright_big = (GDK_KEY_Right,SHIFT),
                      panup_big    = (GDK_KEY_Up,SHIFT),
                      pandown_big  = (GDK_KEY_Down,SHIFT),
-                     fliphoriz    = false,
-                     flipvert     = false)
+                     xpanflip     = false,
+                     ypanflip     = false,
+                     zoomin       = (GDK_KEY_Up,  CONTROL),
+                     zoomout      = (GDK_KEY_Down,CONTROL))
     add_events(c, KEY_PRESS)
     setproperty!(c, :can_focus, true)
     setproperty!(c, :has_focus, true)
@@ -223,24 +225,30 @@ function add_pan_key(c;
         viewy = guidata[c, :viewy]
         viewxlimits = guidata[c, :viewxlimits]
         viewylimits = guidata[c, :viewylimits]
-        hsign = fliphoriz ? -1 : 1
-        vsign = flipvert  ? -1 : 1
+        xsign = xpanflip ? -1 : 1
+        ysign = ypanflip ? -1 : 1
         if keymatch(event, panleft)
-            viewx = pan(viewx, -0.1*hsign, viewxlimits)
+            viewx = pan(viewx, -0.1*xsign, viewxlimits)
         elseif keymatch(event, panright)
-            viewx = pan(viewx,  0.1*hsign, viewxlimits)
+            viewx = pan(viewx,  0.1*xsign, viewxlimits)
         elseif keymatch(event, panup)
-            viewy = pan(viewy, -0.1*vsign, viewylimits)
+            viewy = pan(viewy, -0.1*ysign, viewylimits)
         elseif keymatch(event, pandown)
-            viewy = pan(viewy,  0.1*vsign, viewylimits)
+            viewy = pan(viewy,  0.1*ysign, viewylimits)
         elseif keymatch(event, panleft_big)
-            viewx = pan(viewx, -1*hsign, viewxlimits)
+            viewx = pan(viewx, -1*xsign, viewxlimits)
         elseif keymatch(event, panright_big)
-            viewx = pan(viewx,  1*hsign, viewxlimits)
+            viewx = pan(viewx,  1*xsign, viewxlimits)
         elseif keymatch(event, panup_big)
-            viewy = pan(viewy, -1*vsign, viewylimits)
+            viewy = pan(viewy, -1*ysign, viewylimits)
         elseif keymatch(event, pandown_big)
-            viewy = pan(viewy,  1*vsign, viewylimits)
+            viewy = pan(viewy,  1*ysign, viewylimits)
+        elseif keymatch(event, zoomin)
+            viewx = zoom(viewx, 0.5, viewxlimits)
+            viewy = zoom(viewy, 0.5, viewylimits)
+        elseif keymatch(event, zoomout)
+            viewx = zoom(viewx, 2.0, viewxlimits)
+            viewy = zoom(viewy, 2.0, viewylimits)
         end
         guidata[c, :viewx] = viewx
         guidata[c, :viewy] = viewy
@@ -251,120 +259,28 @@ end
 keymatch(event, keydesc) = event.keyval == keydesc[1] && event.state == @compat(UInt32(keydesc[2]))
 
 @doc """
-`id = add_pan_mouse(c; kwargs...)` initializes panning-by-mouse-scroll
-for a canvas `c`.
+`panzoom_mouse(c; kwargs...)` initializes panning-by-mouse-scroll and mouse
+control over zooming for a canvas `c`.
 
-Horizontal or vertical panning is selected by modifier keys, which are
-configurable through keyword arguments.  The default settings are:
-```
-    panhoriz = SHIFT,     # hold down the shift key
-    panvert  = 0,
-    fliphoriz = false,
-    flipvert  = false
-```
-where 0 means no modifier. SHIFT is defined in `Gtk.GConstants.GdkModifierType`.
-
-For important additional information, see `add_pan_key`.
-
-Example:
-```
-    c = @Canvas()
-    panzoom(c, (0,1), (0,1))
-    id = add_pan_mouse(c)
-```
-""" ->
-function add_pan_mouse(c;
-                       panhoriz = SHIFT,
-                       panvert  = 0,
-                       fliphoriz = false,
-                       flipvert  = false)
-    add_events(c, SCROLL)
-    signal_connect(c, :scroll_event) do widget, event
-        viewx = guidata[c, :viewx]
-        viewy = guidata[c, :viewy]
-        viewxlimits = guidata[c, :viewxlimits]
-        viewylimits = guidata[c, :viewylimits]
-        s = 0.1*scrollpm(event.direction)
-        if     event.state == @compat(UInt32(panhoriz))
-            viewx = pan(viewx, (fliphoriz ? -1 : 1) * s, viewxlimits)
-        elseif event.state == @compat(UInt32(panvert))
-            viewy = pan(viewy, (flipvert  ? -1 : 1) * s, viewylimits)
-        end
-        guidata[c, :viewx] = viewx
-        guidata[c, :viewy] = viewy
-        nothing
-    end
-end
-
-scrollpm(direction::Integer) =
-    direction == UP ? -1 :
-    direction == DOWN ? 1 : error("Direction ", direction, " not recognized")
-
-
-@doc """
-`id = add_zoom_key(c; kwargs...)` initializes zooming-by-keypress
-for a canvas `c`.
-
-The keys that initiate zooming are chosen through keyword arguments,
-with default values:
+zooming or panning (along either x or y) is selected by modifier keys,
+which are configurable through keyword arguments.  The default
+settings are:
 
 ```
-    in        = (GDK_KEY_Up,  CONTROL)
-    out       = (GDK_KEY_Down,CONTROL)
-```
-In other words, by default press Ctrl-Up to zoom in, and Ctrl-Down to
-zoom out.
-
-For important additional information, see `add_pan_key`.
-
-Example:
-```
-    c = @Canvas()
-    panzoom(c, (0,1), (0,1))
-    id = add_zoom_key(c)
-```
-""" ->
-function add_zoom_key(c;
-                     in  = (GDK_KEY_Up,  CONTROL),
-                     out = (GDK_KEY_Down,CONTROL))
-    add_events(c, KEY_PRESS)
-    setproperty!(c, :can_focus, true)
-    setproperty!(c, :has_focus, true)
-    signal_connect(c, :key_press_event) do widget, event
-        viewx = guidata[c, :viewx]
-        viewy = guidata[c, :viewy]
-        viewxlimits = guidata[c, :viewxlimits]
-        viewylimits = guidata[c, :viewylimits]
-        s = 1.0
-        if keymatch(event, in)
-            s = 0.5
-        elseif keymatch(event, out)
-            s = 2.0
-        end
-        viewx = zoom(viewx, s, viewxlimits)
-        viewy = zoom(viewy, s, viewylimits)
-        guidata[c, :viewx] = viewx
-        guidata[c, :viewy] = viewy
-        nothing
-    end
-end
-
-@doc """
-`id = add_zoom_mouse(c; kwargs...)` initializes zooming-by-rubberband
-selection and zooming-by-mouse-scroll for a canvas `c`.
-
-Zooming-by-scroll is accompanied by a modifier key, which is
-configurable through keyword arguments.  The keywords and their
-defaults are:
-```
-    mod       = CONTROL,     # hold down the ctrl-key while scrolling
-    focus     = :pointer
+    # Panning
+    xpan      = SHIFT     # hold down the shift key
+    ypan      = 0
+    xpanflip  = false
+    ypanflip  = false
+    # Zooming
+    zoom      = CONTROL     # hold down the ctrl-key while scrolling
+    focus     = :pointer    # zoom around the position under the mouse pointer
     factor    = 2.0
     initiate  = BUTTON_PRESS # start a rubberband selection for zoom
     reset     = DOUBLE_BUTTON_PRESS    # go back to original limits
 ```
-CONTROL, BUTTON_PRESS, and DOUBLE_BUTTON_PRESS are defined in
-`Gtk.GConstants.GdkModifierType`.
+where 0 means no modifier. SHIFT, CONTROL, BUTTON_PRESS, and
+DOUBLE_BUTTON_PRESS are defined in `Gtk.GConstants.GdkModifierType`.
 
 The `focus` keyword controls how the zooming progresses as you scroll
 the mouse wheel. `:pointer` means that whatever feature of the canvas
@@ -373,66 +289,78 @@ choice, `:center`, keeps the canvas centered on its current location.
 These behaviors are subject to modification by the canvas'
 `:viewlimits` data.
 
-For important additional information, see `add_pan_key`.
-
-An additional keyword is `user_to_data`, for which you supply
+An additional keyword is `user_to_data`, for which you may supply
 a function
 ```
     user_to_data_fcn(c, x, y) -> (datax, datay)
 ```
-that converts canvas user-coordinates to "data coordinates."
+that converts canvas user-coordinates to "data coordinates" before
+setting the values of :viewx and :viewy.
+
+For important additional information, see `panzoom_key`. To disable mouse
+panning and zooming, use
+```
+    pop!((c.mouse, :scroll))
+    pop!((c.mouse, :button1press))
+```
 
 Example:
 ```
     c = @Canvas()
     panzoom(c, (0,1), (0,1))
-    idclick, idscroll = add_zoom_mouse(c)
+    panzoom_mouse(c)
 ```
-The returned `id`s the handlers for clicking (i.e., rubberband
-selection and resetting) and scrolling, respectively.
 """ ->
-function add_zoom_mouse(c;
-                        mod = CONTROL,
-                        focus::Symbol = :pointer,
-                        factor = 2.0,
-                        initiate = BUTTON_PRESS,
-                        reset = DOUBLE_BUTTON_PRESS,
-                        user_to_data = (c,x,y)->(x,y))
-    add_events(c, SCROLL)
+function panzoom_mouse(c;
+                       # Panning
+                       xpan = SHIFT,
+                       ypan  = 0,
+                       xpanflip = false,
+                       ypanflip  = false,
+                       # Zooming
+                       zoom = CONTROL,
+                       focus::Symbol = :pointer,
+                       factor = 2.0,
+                       initiate = BUTTON_PRESS,
+                       reset = DOUBLE_BUTTON_PRESS,
+                       user_to_data = (c,x,y)->(x,y))
     focus == :pointer || focus == :center || error("focus must be :pointer or :center")
-    id1 = signal_connect(zoom_mouse_button_cb, c, "button-press-event", Cint, (Ptr{Gtk.GdkEventButton},), false, (initiate,reset,user_to_data))
-    id2 = signal_connect(zoom_mouse_scroll_cb, c, "scroll-event", Cint, (Ptr{Gtk.GdkEventScroll},), false, (mod, focus, factor, user_to_data))
-    (id1, id2)
-end
-
-function zoom_mouse_button_cb(widgetp::Ptr, eventp::Ptr, actions)
-    widget = convert(Gtk.GtkCanvas, widgetp)
-    event = unsafe_load(eventp)
-    initiate, reset, user_to_data = actions
-    if event.event_type == initiate
-        rubberband_start(widget, event.x, event.y, (widget, bb) -> zoom_bb(widget, bb, user_to_data))
-        return Cint(1)
-    elseif event.event_type == reset
-        zoom_reset(widget)
-        return Cint(1)
-    end
-    return Cint(0)
-end
-
-function zoom_mouse_scroll_cb(widgetp::Ptr, eventp::Ptr, kws)
-    widget = convert(Gtk.GtkCanvas, widgetp)
-    event = unsafe_load(eventp)
-    mod, focus, factor, user_to_data = kws
-    if event.state == @compat(UInt32(mod))
-        s = factor
-        if event.direction == UP
-            s = 1/s
+    # Scroll events
+    scrollfun = (widget, event) -> begin
+        s = 0.1*scrollpm(event.direction)
+        if  xpan != nothing && event.state == @compat(UInt32(xpan))
+            viewx = guidata[c, :viewx]
+            viewxlimits = guidata[c, :viewxlimits]
+            guidata[c, :viewx] = pan(viewx, (xpanflip ? -1 : 1) * s, viewxlimits)
+        elseif ypan != nothing && event.state == @compat(UInt32(ypan))
+            viewy = guidata[c, :viewy]
+            viewylimits = guidata[c, :viewylimits]
+            guidata[c, :viewy] = pan(viewy, (ypanflip  ? -1 : 1) * s, viewylimits)
+        elseif zoom != nothing && event.state == @compat(UInt32(zoom))
+            s = factor
+            if event.direction == UP
+                s = 1/s
+            end
+            zoom_focus(widget, s, event; focus=focus, user_to_data=user_to_data)
         end
-        zoom_focus(widget, s, event; focus=focus, user_to_data=user_to_data)
-        return Cint(1)
     end
-    return Cint(0)
+    # Click events
+    clickfun = (widget, event) -> begin
+        if event.event_type == initiate
+            rubberband_start(widget, event.x, event.y, (widget, bb) -> zoom_bb(widget, bb, user_to_data))
+        elseif event.event_type == reset
+            zoom_reset(widget)
+        end
+    end
+    push!((c.mouse, :scroll), scrollfun)
+    push!((c.mouse, :button1press), clickfun)
+    nothing
 end
+
+scrollpm(direction::Integer) =
+    direction == UP ? -1 :
+    direction == DOWN ? 1 : error("Direction ", direction, " not recognized")
+
 
 function zoom_focus(c, s, event; focus::Symbol=:pointer, user_to_data=(c,x,y)->(x,y))
     viewx = guidata[c, :viewx]

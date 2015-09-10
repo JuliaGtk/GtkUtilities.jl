@@ -34,10 +34,8 @@ export
     interior,
     fullview,
     panzoom,
-    add_pan_key,
-    add_pan_mouse,
-    add_zoom_key,
-    add_zoom_mouse,
+    panzoom_key,
+    panzoom_mouse,
     set_coords
 
 include("link.jl")
@@ -45,6 +43,7 @@ using .Link
 include("guidata.jl")
 using .GuiData
 include("rubberband.jl")
+using .RubberBands
 include("panzoom.jl")
 using .PanZoom
 import .PanZoom: interior, fullview   # for extensions

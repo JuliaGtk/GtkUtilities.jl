@@ -1,3 +1,9 @@
+module RubberBands
+
+using Graphics, Gtk.ShortNames
+
+export rubberband_start
+
 # For rubberband, we draw the selection region on the front canvas, and repair
 # by copying from the back. Note that the front canvas has
 #     user coordinates = device coordinates,
@@ -64,9 +70,8 @@ function rubberband_start(c::Canvas, x, y, callback_done::Function; minpixels::I
     reset_transform(r)
     ctxcopy = copy(r)
     rb = RubberBand(Vec2(x,y), Vec2(x,y), false, minpixels)
-    callbacks_old = (c.mouse.button1motion, c.mouse.button1release)
-    c.mouse.button1motion = (c, event) -> rubberband_move(c, rb, event.x, event.y, ctxcopy)
-    c.mouse.button1release = (c, event) -> rubberband_stop(c, rb, event.x, event.y, ctxcopy, callbacks_old, callback_done)
+    push!((c.mouse, :button1motion),  (c, event) -> rubberband_move(c, rb, event.x, event.y, ctxcopy))
+    push!((c.mouse, :button1release), (c, event) -> rubberband_stop(c, rb, event.x, event.y, ctxcopy, callback_done))
     nothing
 end
 
@@ -82,9 +87,9 @@ function rubberband_move(c::Canvas, rb::RubberBand, x, y, ctxcopy)
     reveal(c, false)
 end
 
-function rubberband_stop(c::Canvas, rb::RubberBand, x, y, ctxcopy, callbacks_old, callback_done)
-    c.mouse.button1motion = callbacks_old[1]
-    c.mouse.button1release = callbacks_old[2]
+function rubberband_stop(c::Canvas, rb::RubberBand, x, y, ctxcopy, callback_done)
+    pop!((c.mouse, :button1motion))
+    pop!((c.mouse, :button1release))
     if !rb.moved
         return
     end
@@ -102,3 +107,5 @@ function rubberband_stop(c::Canvas, rb::RubberBand, x, y, ctxcopy, callbacks_old
         callback_done(c, bb)
     end
 end
+
+end # module

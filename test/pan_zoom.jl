@@ -28,9 +28,7 @@ draw(c) do widget
     fill(ctx)
 end
 
-idpan_key    = add_pan_key(c)
-idpan_mouse  = add_pan_mouse(c)
-idzoom_key   = add_zoom_key(c)
-idzoom_mouse = add_zoom_mouse(c)
+panzoom_key(c)
+panzoom_mouse(c)
 
 nothing
