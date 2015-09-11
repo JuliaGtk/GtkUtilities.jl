@@ -165,9 +165,9 @@ pan(iv, frac::Real, limits) = interior(shift(iv, frac*width(iv)), limits)
 zoom(iv, s::Real, limits) = interior(s*iv, limits)
 
 @doc """
-`id = panzoom_key(c; kwargs...)` initializes panning-by-keypress for a
-canvas `c`. `c` is expected to have the four `guidata` properties
-described in `panzoom`.
+`id = panzoom_key(c; kwargs...)` initializes panning- and
+zooming-by-keypress for a canvas `c`. `c` is expected to have the four
+`guidata` properties described in `panzoom`.
 
 You can configure the keys through keyword arguments. The default
 settings are shown below. The first entry is the key, the second a
