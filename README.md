@@ -5,17 +5,10 @@
 This package is a collection of extensions to
 [Gtk](https://github.com/JuliaLang/Gtk.jl) that make interactive
 graphics easier.  For example, it allows you to:
-- synchronize state across multiple UI widgets and canvases
 - "attach" user data to widgets or any other object
 - perform rubber-band selection
 - use pan and zoom
-
-Planned capabilities include:
-- support for hit testing (selecting objects like points or lines)
-
-Possible extensions (likely via separate packages):
-- interactive color picker
-- on-screen drawing
+- synchronize state across multiple UI widgets and canvases
 
 ## Installation
 
@@ -25,45 +18,6 @@ Pkg.add("GtkUtilities")
 ```
 
 ## Usage
-
-### Managing state
-
-Suppose you have a slider (a `Scale`) and an `Entry` box as two
-alternative mechanisms for specifying a single number, and you want to
-use that number in some calculations when you render a `Canvas`.
-Who "owns" the number? Does the `Entry` callback have to be aware of
-the `Scale` callback, and vice-versa?
-
-You can centralize your handling of this piece of information by using
-a `State` object and `link`ing it to the UI elements:
-
-```jl
-state = State(5)
-
-e = @Entry()
-s = @Scale(false, 1:10)
-c = @Canvas()
-draw(c) do widget
-   ...   # make use of state in here somewhere
-end
-
-elink = link(state, e)
-slink = link(state, s)
-link(state, c)
-
-get(elink)               # returns 5
-set!(state, 7)           # wow, the Canvas redraws and the Entry & Scale change!
-get(state)               # returns 7
-get(slink)               # returns 7
-set!(slink, 4)           # everything updates again
-```
-
-Note that in this example we didn't have to write any callbacks at
-all: just `link`ing the widget to the `State` object creates the
-callback we need, and any changes are automatically propagated for
-you.
-
-The design of the State component was inspired by Reactive.jl.
 
 ### `guidata`: associating user data with widgets
 
@@ -121,23 +75,21 @@ bounding box of the selection region.
 
 ### Zooming and panning
 
-Zooming and panning a Canvas `c` are performed using two `guidata`
-objects, `guidata[c, :viewbb]` and `guidata[c, :viewlimits]`.
-`:viewbb` expresses the current view region, which includes effects of
-any previous zoom and pan operations.  `:viewlimits` corresponds to an
-object which can act to prevent panning or zooming from going beyond an
-allowable area; most commonly this is just another bounding box, but
-any object for which you implement `interior` can serve as a valid
-`:viewlimits` object. (See `?interior` for more information.)
+Zooming and panning a Canvas `c` are performed using four `guidata`
+objects, named `:xview`, `:yview`, `:xviewlimits`, `:yviewlimits`.
+The first two express the current view region, which includes
+effects of any previous zoom and pan operations.  The second two
+encode the allowable area, representing the largest-sized region
+that may be viewed.
 
-It is crucial that the `draw` method for your Canvas makes use of the
-`:viewbb` property and renders only over the selected view region.
+The `draw` method for your Canvas must make use of the
+`:xview`, `:yview` properties.
 In the simplest cases, you might achieve this with
 ```jl
 ctx = getgc(c)
 h = height(c)
 w = width(c)
-bb = guidata[c, :viewbb]
+xview, yview = guidata[c, :xview], guidata[c, :yview]
 set_coords(ctx, BoundingBox(0, w, 0, h), bb)
 ```
 and then rendering the entire canvas in units of the original
@@ -145,21 +97,63 @@ and then rendering the entire canvas in units of the original
 
 You intialize panning and zooming with
 ```
-id1 = add_pan_key(c)
-id2 = add_pan_mouse(c)
-id3 = add_zoom_key(c)
-id4 = add_zoom_mouse(c)
+panzoom(c, [xviewlimits, yviewlimits], [xview, yview])
+panzoom_mouse(c)
+id = panzoom_key(c)
 ```
 
 This sequence will implement panning and zooming with either the
 keyboard or wheel-mouse.  You can specify the keys and modifiers, as
 well as the behavior of scroll-zooming relative to the mouse pointer
 location, via keyword arguments to these functions. See each
-individual function (e.g., `?add_pan_key`) for more information.
+individual function (e.g., `?panzoom_key`) for more information.
 
 The returned `id` can be disabled or enabled via
 `signal_handler_block` and `signal_handler_unblock`, respectively, or
 removed with `signal_handler_disconnect`.
+
+### Managing state
+
+**Note**: this component will be rebased on Reactive.jl after
+https://github.com/JuliaLang/Reactive.jl/pull/65 merges, hopefully
+via https://github.com/jverzani/GtkInteract.jl. This
+interface is deprecated.
+
+Suppose you have a slider (a `Scale`) and an `Entry` box as two
+alternative mechanisms for specifying a single number, and you want to
+use that number in some calculations when you render a `Canvas`.
+Who "owns" the number? Does the `Entry` callback have to be aware of
+the `Scale` callback, and vice-versa?
+
+You can centralize your handling of this piece of information by using
+a `State` object and `link`ing it to the UI elements:
+
+```jl
+state = State(5)
+
+e = @Entry()
+s = @Scale(false, 1:10)
+c = @Canvas()
+draw(c) do widget
+   ...   # make use of state in here somewhere
+end
+
+elink = link(state, e)
+slink = link(state, s)
+link(state, c)
+
+get(elink)               # returns 5
+set!(state, 7)           # wow, the Canvas redraws and the Entry & Scale change!
+get(state)               # returns 7
+get(slink)               # returns 7
+set!(slink, 4)           # everything updates again
+```
+
+Note that in this example we didn't have to write any callbacks at
+all: just `link`ing the widget to the `State` object creates the
+callback we need, and any changes are automatically propagated for
+you.
+
 
 ## Help
 

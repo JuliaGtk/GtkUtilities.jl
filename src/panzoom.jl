@@ -112,8 +112,8 @@ fullview(limits::Interval) = limits
 @doc """
 ```jl
 panzoom(c)
-panzoom(c, viewxlimits, viewylimits)
-panzoom(c, viewxlimits, viewylimits, viewx, viewy)
+panzoom(c, xviewlimits, yviewlimits)
+panzoom(c, xviewlimits, yviewlimits, xview, yview)
 ```
 sets up the Canvas `c` for panning and zooming. The arguments may be
 2-tuples, 2-vectors, Intervals, or `nothing`.
@@ -121,12 +121,12 @@ sets up the Canvas `c` for panning and zooming. The arguments may be
 `panzoom` creates the `:view[x|y]`, `:view[x|y]limits` properties of
 `c`:
 
-- `:viewx`, `:viewy` are two `AbstractState`s (for horizontal and
+- `:xview`, `:yview` are two `AbstractState`s (for horizontal and
     vertical, respectively), each holding an Interval specifying
     the current "view" limits. This might be the entire area, or it
     might be a subregion due to a previous zoom event.
 
-- `:viewxlimits`, `:viewylimits` encode the maximum allowable viewing
+- `:xviewlimits`, `:yviewlimits` encode the maximum allowable viewing
     region; in most cases these will also be `State{Interval}`s, but
     any object that supports `interior` and `fullview` may be used.
     Use `nothing` to indicate unlimited range.
@@ -134,20 +134,20 @@ sets up the Canvas `c` for panning and zooming. The arguments may be
 If `c` is the only argument to `panzoom`, then the current user-coordinate
 limits of `c` are used.
 """ ->
-panzoom(c, viewxlimits::Interval, viewylimits::Interval) =
-    panzoom(c, State(viewxlimits), State(viewylimits))
+panzoom(c, xviewlimits::Interval, yviewlimits::Interval) =
+    panzoom(c, State(xviewlimits), State(yviewlimits))
 
-panzoom(c, viewxlimits::VecLike, viewylimits::VecLike) = panzoom(c, iv(viewxlimits), iv(viewylimits))
+panzoom(c, xviewlimits::VecLike, yviewlimits::VecLike) = panzoom(c, iv(xviewlimits), iv(yviewlimits))
 
-panzoom(c, viewxlimits::Union{VecLike,Void}, viewylimits::Union{VecLike,Void}, viewx::VecLike, viewy::VecLike) = panzoom(c, State(iv(viewxlimits)), State(iv(viewylimits)), State(iv(viewx)), State(iv(viewy)))
+panzoom(c, xviewlimits::Union{VecLike,Void}, yviewlimits::Union{VecLike,Void}, xview::VecLike, yview::VecLike) = panzoom(c, State(iv(xviewlimits)), State(iv(yviewlimits)), State(iv(xview)), State(iv(yview)))
 
-function panzoom(c, viewxlimits::AbstractState, viewylimits::AbstractState, viewx::AbstractState = similar(viewxlimits), viewy::AbstractState = similar(viewylimits))
-    guidata[c, :viewx] = viewx
-    guidata[c, :viewy] = viewy
-    guidata[c, :viewxlimits] = viewxlimits
-    guidata[c, :viewylimits] = viewylimits
-    link(viewx, c)
-    link(viewy, c)
+function panzoom(c, xviewlimits::AbstractState, yviewlimits::AbstractState, xview::AbstractState = similar(xviewlimits), yview::AbstractState = similar(yviewlimits))
+    guidata[c, :xview] = xview
+    guidata[c, :yview] = yview
+    guidata[c, :xviewlimits] = xviewlimits
+    guidata[c, :yviewlimits] = yviewlimits
+    link(xview, c)
+    link(yview, c)
     nothing
 end
 
@@ -221,37 +221,37 @@ function panzoom_key(c;
     setproperty!(c, :can_focus, true)
     setproperty!(c, :has_focus, true)
     signal_connect(c, :key_press_event) do widget, event
-        viewx = guidata[c, :viewx]
-        viewy = guidata[c, :viewy]
-        viewxlimits = guidata[c, :viewxlimits]
-        viewylimits = guidata[c, :viewylimits]
+        xview = guidata[c, :xview]
+        yview = guidata[c, :yview]
+        xviewlimits = guidata[c, :xviewlimits]
+        yviewlimits = guidata[c, :yviewlimits]
         xsign = xpanflip ? -1 : 1
         ysign = ypanflip ? -1 : 1
         if keymatch(event, panleft)
-            viewx = pan(viewx, -0.1*xsign, viewxlimits)
+            xview = pan(xview, -0.1*xsign, xviewlimits)
         elseif keymatch(event, panright)
-            viewx = pan(viewx,  0.1*xsign, viewxlimits)
+            xview = pan(xview,  0.1*xsign, xviewlimits)
         elseif keymatch(event, panup)
-            viewy = pan(viewy, -0.1*ysign, viewylimits)
+            yview = pan(yview, -0.1*ysign, yviewlimits)
         elseif keymatch(event, pandown)
-            viewy = pan(viewy,  0.1*ysign, viewylimits)
+            yview = pan(yview,  0.1*ysign, yviewlimits)
         elseif keymatch(event, panleft_big)
-            viewx = pan(viewx, -1*xsign, viewxlimits)
+            xview = pan(xview, -1*xsign, xviewlimits)
         elseif keymatch(event, panright_big)
-            viewx = pan(viewx,  1*xsign, viewxlimits)
+            xview = pan(xview,  1*xsign, xviewlimits)
         elseif keymatch(event, panup_big)
-            viewy = pan(viewy, -1*ysign, viewylimits)
+            yview = pan(yview, -1*ysign, yviewlimits)
         elseif keymatch(event, pandown_big)
-            viewy = pan(viewy,  1*ysign, viewylimits)
+            yview = pan(yview,  1*ysign, yviewlimits)
         elseif keymatch(event, zoomin)
-            viewx = zoom(viewx, 0.5, viewxlimits)
-            viewy = zoom(viewy, 0.5, viewylimits)
+            xview = zoom(xview, 0.5, xviewlimits)
+            yview = zoom(yview, 0.5, yviewlimits)
         elseif keymatch(event, zoomout)
-            viewx = zoom(viewx, 2.0, viewxlimits)
-            viewy = zoom(viewy, 2.0, viewylimits)
+            xview = zoom(xview, 2.0, xviewlimits)
+            yview = zoom(yview, 2.0, yviewlimits)
         end
-        guidata[c, :viewx] = viewx
-        guidata[c, :viewy] = viewy
+        guidata[c, :xview] = xview
+        guidata[c, :yview] = yview
         nothing
     end
 end
@@ -295,7 +295,7 @@ a function
     user_to_data_fcn(c, x, y) -> (datax, datay)
 ```
 that converts canvas user-coordinates to "data coordinates" before
-setting the values of :viewx and :viewy.
+setting the values of :xview and :yview.
 
 For important additional information, see `panzoom_key`. To disable mouse
 panning and zooming, use
@@ -329,13 +329,13 @@ function panzoom_mouse(c;
     scrollfun = (widget, event) -> begin
         s = 0.1*scrollpm(event.direction)
         if  xpan != nothing && event.state == @compat(UInt32(xpan))
-            viewx = guidata[c, :viewx]
-            viewxlimits = guidata[c, :viewxlimits]
-            guidata[c, :viewx] = pan(viewx, (xpanflip ? -1 : 1) * s, viewxlimits)
+            xview = guidata[c, :xview]
+            xviewlimits = guidata[c, :xviewlimits]
+            guidata[c, :xview] = pan(xview, (xpanflip ? -1 : 1) * s, xviewlimits)
         elseif ypan != nothing && event.state == @compat(UInt32(ypan))
-            viewy = guidata[c, :viewy]
-            viewylimits = guidata[c, :viewylimits]
-            guidata[c, :viewy] = pan(viewy, (ypanflip  ? -1 : 1) * s, viewylimits)
+            yview = guidata[c, :yview]
+            yviewlimits = guidata[c, :yviewlimits]
+            guidata[c, :yview] = pan(yview, (ypanflip  ? -1 : 1) * s, yviewlimits)
         elseif zoom != nothing && event.state == @compat(UInt32(zoom))
             s = factor
             if event.direction == UP
@@ -363,25 +363,25 @@ scrollpm(direction::Integer) =
 
 
 function zoom_focus(c, s, event; focus::Symbol=:pointer, user_to_data=(c,x,y)->(x,y))
-    viewx = guidata[c, :viewx]
-    viewy = guidata[c, :viewy]
-    viewxlimits = guidata[c, :viewxlimits]
-    viewylimits = guidata[c, :viewylimits]
+    xview = guidata[c, :xview]
+    yview = guidata[c, :yview]
+    xviewlimits = guidata[c, :xviewlimits]
+    yviewlimits = guidata[c, :yviewlimits]
     if focus == :pointer
         ux, uy = device_to_user(getgc(c), event.x, event.y)
         centerx, centery = user_to_data(c, ux, uy)
-        w, h = width(viewx), width(viewy)
-        fx, fy = (centerx-viewx.min)/w, (centery-viewy.min)/h
+        w, h = width(xview), width(yview)
+        fx, fy = (centerx-xview.min)/w, (centery-yview.min)/h
         wbb, hbb = s*w, s*h
-        viewx = interior(Interval(centerx-fx*wbb,centerx+(1-fx)*wbb), viewxlimits)
-        viewy = interior(Interval(centery-fy*hbb,centery+(1-fy)*hbb), viewylimits)
+        xview = interior(Interval(centerx-fx*wbb,centerx+(1-fx)*wbb), xviewlimits)
+        yview = interior(Interval(centery-fy*hbb,centery+(1-fy)*hbb), yviewlimits)
     elseif focus == :center
-        viewx = zoom(viewx, s, viewxlimits)
-        viewy = zoom(viewy, s, viewylimits)
+        xview = zoom(xview, s, xviewlimits)
+        yview = zoom(yview, s, yviewlimits)
     end
-    getindex(guidata, c, :viewx; raw=true).value = viewx
-    getindex(guidata, c, :viewy; raw=true).value = viewy
-    trigger(c, (:viewx, :viewy))
+    getindex(guidata, c, :xview; raw=true).value = xview
+    getindex(guidata, c, :yview; raw=true).value = yview
+    trigger(c, (:xview, :yview))
     c
 end
 
@@ -392,17 +392,17 @@ end
 function zoom_bb(widget, bb::BoundingBox, user_to_data=(c,x,y)->(x,y))
     xmin, ymin = user_to_data(widget, bb.xmin, bb.ymin)
     xmax, ymax = user_to_data(widget, bb.xmax, bb.ymax)
-    getindex(guidata, widget, :viewx; raw=true).value = (xmin, xmax)
-    getindex(guidata, widget, :viewy; raw=true).value = (ymin, ymax)
-    trigger(widget, (:viewx, :viewy))
+    getindex(guidata, widget, :xview; raw=true).value = (xmin, xmax)
+    getindex(guidata, widget, :yview; raw=true).value = (ymin, ymax)
+    trigger(widget, (:xview, :yview))
     widget
 end
 
 function zoom_reset(widget)
-    vxlim, vylim = guidata[widget, :viewxlimits], guidata[widget, :viewylimits]
-    vxlim != nothing && (getindex(guidata, widget, :viewx; raw=true).value = vxlim)
-    vylim != nothing && (getindex(guidata, widget, :viewy; raw=true).value = vylim)
-    trigger(widget, (:viewx, :viewy))
+    xvlim, yvlim = guidata[widget, :xviewlimits], guidata[widget, :yviewlimits]
+    xvlim != nothing && (getindex(guidata, widget, :xview; raw=true).value = xvlim)
+    yvlim != nothing && (getindex(guidata, widget, :yview; raw=true).value = yvlim)
+    trigger(widget, (:xview, :yview))
     widget
 end
 

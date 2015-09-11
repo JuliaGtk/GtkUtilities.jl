@@ -7,7 +7,7 @@ showall(win)
 panzoom(c, (0,1), (0,1))
 
 draw(c) do widget
-    xview, yview = guidata[widget, :viewx], guidata[widget, :viewy]
+    xview, yview = guidata[widget, :xview], guidata[widget, :yview]
     ctx = getgc(widget)
     set_coords(ctx, xview, yview)
     # Paint red rectangle

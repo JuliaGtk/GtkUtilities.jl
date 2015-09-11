@@ -138,7 +138,7 @@ Example:
 
     c = @Canvas()
     panzoom(c, (0,1), (0,1))
-    viewx = guidata[c, :viewx]
+    xview = guidata[c, :xview]
 ```
 
 Note that if `:name` corresponds to a `State` object, `guidata` will
