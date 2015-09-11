@@ -132,7 +132,9 @@ sets up the Canvas `c` for panning and zooming. The arguments may be
     Use `nothing` to indicate unlimited range.
 
 If `c` is the only argument to `panzoom`, then the current user-coordinate
-limits of `c` are used.
+limits of `c` are used.  Note that this invocation works only if the
+Canvas has been drawn at least once; if that is not the case, you need
+to specify the limits manually.
 """ ->
 panzoom(c, xviewlimits::Interval, yviewlimits::Interval) =
     panzoom(c, State(xviewlimits), State(yviewlimits))
@@ -152,8 +154,9 @@ function panzoom(c, xviewlimits::AbstractState, yviewlimits::AbstractState, xvie
 end
 
 function panzoom(c)
-    xmin, ymin = device_to_user(c, 0, 0)
-    xmax, ymax = device_to_user(c, width(c), height(c))
+    gc = getgc(c)
+    xmin, ymin = device_to_user(gc, 0, 0)
+    xmax, ymax = device_to_user(gc, width(c), height(c))
     panzoom(c, (xmin, xmax), (ymin, ymax))
 end
 

@@ -71,6 +71,7 @@ function rubberband_start(c::Canvas, x, y, callback_done::Function; minpixels::I
     ctxcopy = copy(r)
     rb = RubberBand(Vec2(x,y), Vec2(x,y), false, minpixels)
     push!((c.mouse, :button1motion),  (c, event) -> rubberband_move(c, rb, event.x, event.y, ctxcopy))
+    push!((c.mouse, :motion), Gtk.default_mouse_cb)
     push!((c.mouse, :button1release), (c, event) -> rubberband_stop(c, rb, event.x, event.y, ctxcopy, callback_done))
     nothing
 end
@@ -89,6 +90,7 @@ end
 
 function rubberband_stop(c::Canvas, rb::RubberBand, x, y, ctxcopy, callback_done)
     pop!((c.mouse, :button1motion))
+    pop!((c.mouse, :motion))
     pop!((c.mouse, :button1release))
     if !rb.moved
         return
