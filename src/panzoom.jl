@@ -223,40 +223,61 @@ function panzoom_key(c;
     add_events(c, KEY_PRESS)
     setproperty!(c, :can_focus, true)
     setproperty!(c, :has_focus, true)
-    signal_connect(c, :key_press_event) do widget, event
-        xview = guidata[c, :xview]
-        yview = guidata[c, :yview]
-        xviewlimits = guidata[c, :xviewlimits]
-        yviewlimits = guidata[c, :yviewlimits]
-        xsign = xpanflip ? -1 : 1
-        ysign = ypanflip ? -1 : 1
-        if keymatch(event, panleft)
-            xview = pan(xview, -0.1*xsign, xviewlimits)
-        elseif keymatch(event, panright)
-            xview = pan(xview,  0.1*xsign, xviewlimits)
-        elseif keymatch(event, panup)
-            yview = pan(yview, -0.1*ysign, yviewlimits)
-        elseif keymatch(event, pandown)
-            yview = pan(yview,  0.1*ysign, yviewlimits)
-        elseif keymatch(event, panleft_big)
-            xview = pan(xview, -1*xsign, xviewlimits)
-        elseif keymatch(event, panright_big)
-            xview = pan(xview,  1*xsign, xviewlimits)
-        elseif keymatch(event, panup_big)
-            yview = pan(yview, -1*ysign, yviewlimits)
-        elseif keymatch(event, pandown_big)
-            yview = pan(yview,  1*ysign, yviewlimits)
-        elseif keymatch(event, zoomin)
-            xview = zoom(xview, 0.5, xviewlimits)
-            yview = zoom(yview, 0.5, yviewlimits)
-        elseif keymatch(event, zoomout)
-            xview = zoom(xview, 2.0, xviewlimits)
-            yview = zoom(yview, 2.0, yviewlimits)
-        end
-        guidata[c, :xview] = xview
-        guidata[c, :yview] = yview
-        nothing
+    signal_connect(key_cb, c, :key_press_event, Cint, (Ptr{Gtk.GdkEventKey},),
+                   false, (panleft, panright, panup, pandown, panleft_big,
+                           panright_big, panup_big, pandown_big, xpanflip,
+                           ypanflip, zoomin, zoomout))
+end
+
+@guarded Cint(false) function key_cb(widgetp, eventp, user_data)
+    c = convert(GtkCanvas, widgetp)
+    event = unsafe_load(eventp)
+    (panleft, panright, panup, pandown, panleft_big, panright_big,
+     panup_big, pandown_big, xpanflip, ypanflip, zoomin, zoomout) = user_data
+    xview = guidata[c, :xview]
+    yview = guidata[c, :yview]
+    xviewlimits = guidata[c, :xviewlimits]
+    yviewlimits = guidata[c, :yviewlimits]
+    xsign = xpanflip ? -1 : 1
+    ysign = ypanflip ? -1 : 1
+    handled = Cint(true)
+    ret = Cint(false)
+    if keymatch(event, panleft)
+        guidata[c, :xview] = pan(xview, -0.1*xsign, xviewlimits)
+        ret = handled
+    elseif keymatch(event, panright)
+        guidata[c, :xview] = pan(xview,  0.1*xsign, xviewlimits)
+        ret = handled
+    elseif keymatch(event, panup)
+        guidata[c, :yview] = pan(yview, -0.1*ysign, yviewlimits)
+        ret = handled
+    elseif keymatch(event, pandown)
+        guidata[c, :yview] = pan(yview,  0.1*ysign, yviewlimits)
+        ret = handled
+    elseif keymatch(event, panleft_big)
+        guidata[c, :xview] = pan(xview, -1*xsign, xviewlimits)
+        ret = handled
+    elseif keymatch(event, panright_big)
+        guidata[c, :xview] = pan(xview,  1*xsign, xviewlimits)
+        ret = handled
+    elseif keymatch(event, panup_big)
+        guidata[c, :yview] = pan(yview, -1*ysign, yviewlimits)
+        ret = handled
+    elseif keymatch(event, pandown_big)
+        guidata[c, :yview] = pan(yview,  1*ysign, yviewlimits)
+        ret = handled
+    elseif keymatch(event, zoomin)
+        xview = zoom(xview, 0.5, xviewlimits)
+        yview = zoom(yview, 0.5, yviewlimits)
+        setboth(c, xview, yview)
+        ret = handled
+    elseif keymatch(event, zoomout)
+        xview = zoom(xview, 2.0, xviewlimits)
+        yview = zoom(yview, 2.0, yviewlimits)
+        setboth(c, xview, yview)
+        ret = handled
     end
+    ret
 end
 
 keymatch(event, keydesc) = event.keyval == keydesc[1] && event.state == @compat(UInt32(keydesc[2]))
@@ -349,6 +370,7 @@ function panzoom_mouse(c;
     end
     # Click events
     clickfun = (widget, event) -> begin
+        setproperty!(widget, :is_focus, true)
         if event.event_type == initiate
             rubberband_start(widget, event.x, event.y, (widget, bb) -> zoom_bb(widget, bb, user_to_data))
         elseif event.event_type == reset
@@ -378,14 +400,19 @@ function zoom_focus(c, s, event; focus::Symbol=:pointer, user_to_data=(c,x,y)->(
         wbb, hbb = s*w, s*h
         xview = interior(Interval(centerx-fx*wbb,centerx+(1-fx)*wbb), xviewlimits)
         yview = interior(Interval(centery-fy*hbb,centery+(1-fy)*hbb), yviewlimits)
+        setboth(c, xview, yview)
     elseif focus == :center
         xview = zoom(xview, s, xviewlimits)
         yview = zoom(yview, s, yviewlimits)
+        setboth(c, xview, yview)
     end
+    c
+end
+
+function setboth(c, xview, yview)
     getindex(guidata, c, :xview; raw=true).value = xview
     getindex(guidata, c, :yview; raw=true).value = yview
     trigger(c, (:xview, :yview))
-    c
 end
 
 # We don't take the step of setting new coordinates on the Canvas
@@ -395,9 +422,7 @@ end
 function zoom_bb(widget, bb::BoundingBox, user_to_data=(c,x,y)->(x,y))
     xmin, ymin = user_to_data(widget, bb.xmin, bb.ymin)
     xmax, ymax = user_to_data(widget, bb.xmax, bb.ymax)
-    getindex(guidata, widget, :xview; raw=true).value = (xmin, xmax)
-    getindex(guidata, widget, :yview; raw=true).value = (ymin, ymax)
-    trigger(widget, (:xview, :yview))
+    setboth(widget, (xmin,xmax), (ymin,ymax))
     widget
 end
 
