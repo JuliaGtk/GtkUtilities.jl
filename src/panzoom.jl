@@ -5,7 +5,7 @@ import Gtk.GConstants: GDK_KEY_Left, GDK_KEY_Right, GDK_KEY_Up, GDK_KEY_Down
 import Gtk.GConstants.GdkModifierType: SHIFT, CONTROL, MOD1
 import Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
 import Gtk.GdkEventType: BUTTON_PRESS, DOUBLE_BUTTON_PRESS
-import Gtk.GConstants.GdkScrollDirection: UP, DOWN
+import Gtk.GConstants.GdkScrollDirection: UP, DOWN, LEFT, RIGHT
 import Base: *
 
 if VERSION < v"0.4.0-dev"
@@ -352,7 +352,8 @@ function panzoom_mouse(c;
     # Scroll events
     scrollfun = (widget, event) -> begin
         s = 0.1*scrollpm(event.direction)
-        if  xpan != nothing && event.state == @compat(UInt32(xpan))
+        xscroll = (event.direction == LEFT) || (event.direction == RIGHT)
+        if xpan != nothing && (event.state == (@compat(UInt32(xpan))) || xscroll)
             xview = guidata[c, :xview]
             xviewlimits = guidata[c, :xviewlimits]
             guidata[c, :xview] = pan(xview, (xpanflip ? -1 : 1) * s, xviewlimits)
@@ -384,7 +385,9 @@ end
 
 scrollpm(direction::Integer) =
     direction == UP ? -1 :
-    direction == DOWN ? 1 : error("Direction ", direction, " not recognized")
+    direction == DOWN ? 1 :
+    direction == RIGHT ? 1 :
+    direction == LEFT ? -1 : error("Direction ", direction, " not recognized")
 
 
 function zoom_focus(c, s, event; focus::Symbol=:pointer, user_to_data=(c,x,y)->(x,y))
