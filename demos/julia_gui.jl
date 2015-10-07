@@ -12,7 +12,7 @@ s, z_r, z_i, col = alloc(Float32, width(win))
 
 # This is called for every drawing event (resizing the window,
 # changing the zoom/pan)
-@guarded draw(c) do widget
+@guarded Gtk.ShortNames.draw(c) do widget
     # Retrieve the display region
     xview, yview = guidata[widget, :xview], guidata[widget, :yview]
     set_coords(getgc(widget), xview, yview)
