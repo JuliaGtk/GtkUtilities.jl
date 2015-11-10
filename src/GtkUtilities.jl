@@ -1,14 +1,10 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__()
+__precompile__()
 
 module GtkUtilities
 
 using Cairo, Gtk.ShortNames, Colors
 
-if VERSION < v"0.4.0-dev"
-    using Docile, Base.Graphics
-else
-    using Graphics
-end
+using Graphics
 
 export
     # Link
@@ -59,13 +55,13 @@ Base.copy!(c::Canvas, img) = copy!(getgc(c), img)
 image_surface{C<:Color}(img::AbstractArray{C}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{RGB24}, img)), Cairo.FORMAT_RGB24, flipxy=false)
 image_surface{C<:Colorant}(img::AbstractArray{C}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{ARGB32}, img)), Cairo.FORMAT_ARGB32, flipxy=false)
 
-@doc """
+"""
 Summary of features in GtkUtilities:
 
 - `rubberband_start`: initiate rubber band selection
 - `guidata`: associate user data with on-screen elements
 
 Each of these has detailed help available, e.g., `?guidata`.
-""" -> GtkUtilities
+""" GtkUtilities
 
 end # module

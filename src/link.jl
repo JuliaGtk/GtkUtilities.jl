@@ -167,6 +167,14 @@ function disconnect(val::AbstractState)
     end
 end
 
+function disconnect(val::AbstractState, c::Canvas)
+    index = findfirst(val.canvases, c)
+    if index != 0
+        deleteat!(val.canvases, index)
+    end
+    index
+end
+
 function Base.show(io::IO, w::LinkedWidget)
     print(io, "Linked ", typeof(w.widget).name.name, "(", get(w), ")")
     n = getproperty(w.widget, :name, ByteString)
