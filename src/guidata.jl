@@ -61,6 +61,8 @@ end
 
 Base.setindex!{T}(wd::GUIData, val, ws::@compat(Tuple{T,Symbol})) = wd.data[ws[1],ws[2]] = val
 
+Base.haskey(wd::GUIData, key) = haskey(wd.data, key)
+
 function Base.get{T}(wd::GUIData, ws::@compat(Tuple{T,Symbol}), default; raw::Bool=false)
     d = get(wd.data, ws[1], empty_guidata)
     val = d == empty_guidata ? default : get(d, ws[2], default)

@@ -63,7 +63,7 @@ function Base.similar(s::State)
     if !isimmutable(v)
         v = copy(v)
     end
-    State(v, s.widgets, s.canvases)
+    State(v, copy(s.widgets), copy(s.canvases))
 end
 
 function set!{T}(state::State{T}, value)
@@ -165,6 +165,14 @@ function disconnect(val::AbstractState)
     for w in val.widgets
         signal_handler_disconnect(w.widget, w.id)
     end
+end
+
+function disconnect(val::AbstractState, c::Canvas)
+    index = findfirst(val.canvases, c)
+    if index != 0
+        deleteat!(val.canvases, index)
+    end
+    index
 end
 
 function Base.show(io::IO, w::LinkedWidget)

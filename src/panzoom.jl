@@ -49,10 +49,11 @@ immutable Interval{T}
     min::T
     max::T
 end
+
 Base.convert{T}(::Type{Interval{T}}, v::Interval{T}) = v
 Base.convert{T}(::Type{Interval{T}}, v::Interval) = Interval{T}(v.min, v.max)
 function Base.convert{T}(::Type{Interval{T}}, v::VecLike)
-    v1, v2 = v[1], v[end]
+    v1, v2 = first(v), last(v)
     Interval{T}(min(v1,v2), max(v1,v2))
 end
 
@@ -114,6 +115,7 @@ fullview(limits::Interval) = limits
 panzoom(c)
 panzoom(c, xviewlimits, yviewlimits)
 panzoom(c, xviewlimits, yviewlimits, xview, yview)
+panzoom(c2, c1)
 ```
 sets up the Canvas `c` for panning and zooming. The arguments may be
 2-tuples, 2-vectors, Intervals, or `nothing`.
@@ -135,6 +137,10 @@ If `c` is the only argument to `panzoom`, then the current user-coordinate
 limits of `c` are used.  Note that this invocation works only if the
 Canvas has been drawn at least once; if that is not the case, you need
 to specify the limits manually.
+
+`panzoom(c2, c1)` sets canvas `c2` to share pan/zoom state with canvas
+`c1`.  Panning or zooming in either one will cause the same action in
+the other.
 """ ->
 panzoom(c, xviewlimits::Interval, yviewlimits::Interval) =
     panzoom(c, State(xviewlimits), State(yviewlimits))
@@ -144,12 +150,30 @@ panzoom(c, xviewlimits::VecLike, yviewlimits::VecLike) = panzoom(c, iv(xviewlimi
 panzoom(c, xviewlimits::Union{VecLike,Void}, yviewlimits::Union{VecLike,Void}, xview::VecLike, yview::VecLike) = panzoom(c, State(iv(xviewlimits)), State(iv(yviewlimits)), State(iv(xview)), State(iv(yview)))
 
 function panzoom(c, xviewlimits::AbstractState, yviewlimits::AbstractState, xview::AbstractState = similar(xviewlimits), yview::AbstractState = similar(yviewlimits))
-    guidata[c, :xview] = xview
-    guidata[c, :yview] = yview
-    guidata[c, :xviewlimits] = xviewlimits
-    guidata[c, :yviewlimits] = yviewlimits
+    panzoom_disconnect(c)
+    if !haskey(guidata, c)
+        guidata[c, :xview] = xview
+    end
+    d = guidata[c]
+    d[:xview] = xview
+    d[:yview] = yview
+    d[:xviewlimits] = xviewlimits
+    d[:yviewlimits] = yviewlimits
     link(xview, c)
     link(yview, c)
+    nothing
+end
+
+const empty_view = State(Interval(0.0, -1.0))
+
+function panzoom(c2, c1)
+    panzoom_disconnect(c2)
+    d1, d2 = guidata[c1], guidata[c2]
+    for s in (:xview, :yview, :xviewlimits, :yviewlimits)
+        d2[s] = d1[s]
+    end
+    link(d2[:xview], c2)
+    link(d2[:yview], c2)
     nothing
 end
 
@@ -160,7 +184,19 @@ function panzoom(c)
     panzoom(c, (xmin, xmax), (ymin, ymax))
 end
 
+function panzoom_disconnect(c)
+    for s in (:xview, :yview)
+        v = get(guidata, (c, s), empty_view; raw=true)
+        if v != empty_view
+            disconnect(v, c)
+        end
+    end
+    nothing
+end
+
 iv(x) = Interval{Float64}(x...)
+iv(x::Interval) = convert(Interval{Float64}, x)
+iv(x::State) = iv(get(x))
 iv(x::Void) = x
 
 pan(iv, frac::Real, limits) = interior(shift(iv, frac*width(iv)), limits)
