@@ -63,7 +63,7 @@ function Base.similar(s::State)
     if !isimmutable(v)
         v = copy(v)
     end
-    State(v, s.widgets, s.canvases)
+    State(v, copy(s.widgets), copy(s.canvases))
 end
 
 function set!{T}(state::State{T}, value)
