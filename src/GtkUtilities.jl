@@ -51,6 +51,13 @@ function Base.copy!{C<:Colorant}(ctx::CairoContext, img::AbstractArray{C})
     restore(ctx)
 end
 Base.copy!(c::Canvas, img) = copy!(getgc(c), img)
+function Base.fill!(c::Canvas, color::Colorant)
+    ctx = getgc(c)
+    w, h = width(c), height(c)
+    rectangle(ctx, 0, 0, w, h)
+    set_source(ctx, color)
+    fill(ctx)
+end
 
 image_surface{C<:Color}(img::AbstractArray{C}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{RGB24}, img)), Cairo.FORMAT_RGB24, flipxy=false)
 image_surface{C<:Colorant}(img::AbstractArray{C}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{ARGB32}, img)), Cairo.FORMAT_ARGB32, flipxy=false)
