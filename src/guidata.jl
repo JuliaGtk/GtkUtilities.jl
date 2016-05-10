@@ -38,15 +38,7 @@ function Base.setindex!(wd::GUIData, val, w, s::Symbol; raw::Bool=false)
     if d == empty_guidata
         d = wd.data[w] = Dict{Symbol,Any}()
         if isa(w, Gtk.GtkWidget)
-            signal_connect(w, "destroy") do widget
-                dct = wd.data[widget]
-                for (k,v) in dct
-                    if isa(v, AbstractState)
-                        disconnect(v)
-                    end
-                end
-                delete!(wd.data, widget)
-            end
+            signal_connect(destroy_callback, w, "destroy", Void, (), false, (w,wd))
         end
     end
     if !raw
@@ -57,6 +49,18 @@ function Base.setindex!(wd::GUIData, val, w, s::Symbol; raw::Bool=false)
         end
     end
     d[s] = val
+end
+
+@guarded function destroy_callback(widgetptr::Ptr, user_data)
+    widget, wd = user_data
+    dct = wd.data[widget]
+    for (k,v) in dct
+        if isa(v, AbstractState)
+            disconnect(v)
+        end
+    end
+    delete!(wd.data, widget)
+    nothing
 end
 
 Base.setindex!{T}(wd::GUIData, val, ws::@compat(Tuple{T,Symbol})) = wd.data[ws[1],ws[2]] = val
