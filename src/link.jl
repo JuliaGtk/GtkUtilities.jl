@@ -1,6 +1,8 @@
 module Link
 
 using Gtk.ShortNames
+using Compat
+import Compat.String
 
 export
     # Types
@@ -36,7 +38,7 @@ add_canvas!(state::AbstractState, w) = push!(state.canvases, w)
 function Base.show(io::IO, state::AbstractState)
     print(io, typeof(state).name.name, "(", state.value)
     for w in state.widgets
-        n = getproperty(w.widget, :name, ByteString)
+        n = getproperty(w.widget, :name, String)
         if !isempty(n)
             print(io, ",\"", n, "\"")
         end
@@ -177,7 +179,7 @@ end
 
 function Base.show(io::IO, w::LinkedWidget)
     print(io, "Linked ", typeof(w.widget).name.name, "(", get(w), ")")
-    n = getproperty(w.widget, :name, ByteString)
+    n = getproperty(w.widget, :name, String)
     if !isempty(n)
         print(io, ",\"", n, "\"")
     end
@@ -191,12 +193,12 @@ function create_callback{T,W<:Label}(val::AbstractState{T}, w::LinkedWidget{T,W}
 end
 
 function Base.get{T<:AbstractString,W<:Label}(w::LinkedWidget{T,W})
-    val = getproperty(w.widget, :label, ByteString)
+    val = getproperty(w.widget, :label, String)
     convert(T, val)::T
 end
 
 function Base.get{T<:Number,W<:Label}(w::LinkedWidget{T,W})
-    val = getproperty(w.widget, :label, ByteString)
+    val = getproperty(w.widget, :label, String)
     parse(T, val)::T
 end
 
@@ -218,12 +220,12 @@ function create_callback{T,W<:Entry}(val::AbstractState{T}, w::LinkedWidget{T,W}
 end
 
 function Base.get{T<:AbstractString,W<:Entry}(w::LinkedWidget{T,W})
-    val = getproperty(w.widget, :text, ByteString)
+    val = getproperty(w.widget, :text, String)
     convert(T, val)::T
 end
 
 function Base.get{T<:Number,W<:Entry}(w::LinkedWidget{T,W})
-    val = getproperty(w.widget, :text, ByteString)
+    val = getproperty(w.widget, :text, String)
     parse(T, val)::T
 end
 
