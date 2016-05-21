@@ -1,4 +1,4 @@
-using Colors, GtkUtilities, Gtk.ShortNames, Graphics
+using Colors, GtkUtilities, Gtk.ShortNames, Graphics, Reactive
 
 include("julia_set.jl")
 
@@ -14,7 +14,9 @@ s, z_r, z_i, col = alloc(Float32, width(win))
 # changing the zoom/pan)
 @guarded Gtk.ShortNames.draw(c) do widget
     # Retrieve the display region
-    xview, yview = guidata[widget, :xview], guidata[widget, :yview]
+    cur_roi = value(guidata[widget, :cur_roi])
+	xview = cur_roi.xview
+	yview = cur_roi.yview
     set_coords(getgc(widget), xview, yview)
     # Render the image for this region
     iterate!(s, z_r, z_i, (xview.min,xview.max), (yview.min,yview.max))
@@ -26,7 +28,7 @@ end
 # Initialize panning & zooming
 lim = (-2.0,2.0)
 panzoom(c, lim, lim)
-panzoom_mouse(c, factor=1.1)
+#panzoom_mouse(c, factor=1.1)
 panzoom_key(c)
 
 # Activate the application
