@@ -1,6 +1,6 @@
 module PanZoom
 
-using Gtk, Compat
+using Gtk, Compat, Graphics, Reactive
 import Gtk.GConstants: GDK_KEY_Left, GDK_KEY_Right, GDK_KEY_Up, GDK_KEY_Down
 import Gtk.GConstants.GdkModifierType: SHIFT, CONTROL, MOD1
 import Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
@@ -9,13 +9,6 @@ import Gtk.GConstants.GdkScrollDirection: UP, DOWN, LEFT, RIGHT
 import Base: *
 import Reactive
 import Reactive: value, map, bind!, foreach
-
-if VERSION < v"0.4.0-dev"
-    using Docile, Base.Graphics
-else
-    using Graphics
-end
-
 using ..GtkUtilities.Link
 import ..guidata, ..trigger, ..rubberband_start
 #import ..Link: AbstractState
@@ -25,6 +18,7 @@ typealias VecLike Union{AbstractVector,Tuple}
 export
     # Types
     Interval,
+    ViewROI,
     # constants
     GDK_KEY_Left,
     GDK_KEY_Right,
@@ -43,10 +37,15 @@ export
 
 const ALT = MOD1
 
-@doc """
+"""
+    iv = Interval(min, max)
+    iv = Interval(v)
+
 An `Interval` is a `(min,max)` pair. It is the one-dimensional analog
-of a `BoundingBox`.
-""" ->
+of a `BoundingBox`. You can create an interval using two numbers,
+tuples, ranges, or any other `AbstractVector`; in the latter cases,
+just the first and last entries, respectively, are used.
+"""
 immutable Interval{T}
     min::T
     max::T
@@ -54,16 +53,17 @@ end
 
 Base.convert{T}(::Type{Interval{T}}, v::Interval{T}) = v
 Base.convert{T}(::Type{Interval{T}}, v::Interval) = Interval{T}(v.min, v.max)
-similar{T}(interval::Interval{T}) = Interval(zero(T), zero(T))
+Base.zero{I<:Interval}(::Type{I}) = I(0,0)
 
 function Base.convert{T}(::Type{Interval{T}}, v::VecLike)
     v1, v2 = first(v), last(v)
-    Interval{T}(min(v1,v2), max(v1,v2))
+    Interval{T}(v1, v2)
 end
+Base.convert{T}(::Type{Interval}, v::Tuple{T,T}) = convert(Interval{T}, v)
 
 Graphics.width(iv::Interval) = iv.max-iv.min
 (Base.&)(iv1::Interval, iv2::Interval) = Interval(max(iv1.min, iv2.min),
-                                             min(iv1.max, iv2.max))
+                                                  min(iv1.max, iv2.max))
 Graphics.shift(iv::Interval, dx) = deform(iv, dx, dx)
 function (*)(s::Real, iv::Interval)
     dx = 0.5*(s - 1)*width(iv)
@@ -72,30 +72,22 @@ end
 (*)(iv::Interval, s::Real) = s*iv
 Graphics.deform(iv::Interval, dmin, dmax) = Interval(iv.min+dmin, iv.max+dmax)
 
-type KeySignal #kind of matches the pattern of a Widget, but in this case it's more appropriately called a signal
-	c  #the canvas that the KeySignal listens to
-	key::Tuple{Integer,Integer} #key should match the form the keypress event returned by GDK. It's a tuple of identifier and state.  You can find identifiers by typing Gtk.GConstants.GDK_KEY_ and hitting tab
-	signal::Reactive.Signal #true if pressed (actually true all the time, but we're only using the signal update right now.  At some point we can add a GTK key release signal to make this the true status of the key)
+"""
+    roi = ViewROI(xview, yview)
+
+creates an object that stores intervals along x and y that represent a
+rectangular region. The arguments may be `Interval`s or anything which
+may be converted to an `Interval`.
+
+The `roi` has two fields, called `xview` and `yview`, which are both
+`Interval`s.
+"""
+immutable ViewROI # Tuple{Interval, Interval} #hold off on this for now
+    xview::Interval
+    yview::Interval
 end
-Reactive.push!(ks::KeySignal, val) = Reactive.push!(ks.signal, val)
-signal(ks::KeySignal) = ks.signal
-Reactive.value(ks::KeySignal) = Reactive.value(ks.signal)
-canvas(ks::KeySignal) = ks.c
-key(ks::KeySignal) = ks.key
-Reactive.map(f, ks::KeySignal) = Reactive.map(f, signal(ks))
-Reactive.foreach(f, ks::KeySignal) = Reactive.foreach(f, signal(ks))
-#Base.start(ks::KeySignal) = ks #this seems necessary for calling Reactive.map with do syntax
-#Base.done(ks::KeySignal, state) = true #this seems necessary for calling Reactive.map with do syntax
 
-keysignal(c,key::Tuple{Integer,Integer}) = KeySignal(c, key, Reactive.Signal(false))
-
-type ViewROI # Tuple{Interval, Interval} #hold off on this for now
-	xview::Interval
-	yview::Interval
-end
-similar(roi::ViewROI) = ViewROI(similar(roi.xview), similar(roi.yview))
-
-@doc """
+"""
 `ivnew = interior(iv, limits)` returns a new version of `iv`, an
 `Interval`, which is inside the region allowd by `limits`. One
 should prefer "shifting" `iv` over "shrinking" `iv` (if possible, the
@@ -107,7 +99,7 @@ The simplest effectual `limits` object is another `Interval`
 representing the full view interval across the chosen axis. If you
 need more sophisticated behavior, you can extend this function to work
 with custom types of `limits` objects.
-""" ->
+"""
 interior(iv, ::Void) = iv
 
 function interior(iv, limits::Interval)
@@ -122,7 +114,7 @@ function interior(iv, limits::Interval)
     Interval(imin, imax) & limits
 end
 
-@doc """
+"""
 `iv = fullview(limits)` returns an `Interval` `iv` that
 encompases the full view as permitted by `limits`.
 
@@ -132,83 +124,42 @@ The simplest effectual `limits` object is another `Interval`
 representing the "whole canvas" along the chosen axis. If you need
 more sophisticated behavior, you can extend this function to work with
 custom types of `limits` objects.
-""" ->
+"""
 fullview(::Void) = nothing
 
 fullview(limits::Interval) = limits
 
 
-#Eliminate panzoom in favor of panzoom_key or panzoommouse? Can call it internally when those functions are invoked.
-@doc """
-```jl
-panzoom(c)
-panzoom(c, xviewlimits, yviewlimits)
-panzoom(c, xviewlimits, yviewlimits, xview, yview)
-panzoom(c2, c1)
-```
-sets up the Canvas `c` for panning and zooming. The arguments may be
-2-tuples, 2-vectors, Intervals, or `nothing`.
+"""
+    sigviewlimits, sigview = panzoom(viewlimits)
+    sigviewlimits, sigview = panzoom(viewlimits, view)
 
-`panzoom` creates the `:view[x|y]`, `:view[x|y]limits` properties of
-`c`:
+Creates two Reactive signals that encode the zoom region.
+`viewlimits` encodes the maximum allowable viewing region (in
+user-coordinates); `view` encodes the current view. Both of these must
+be `ViewROI` objects.
 
-- `:xview`, `:yview` are two `AbstractState`s (for horizontal and
-    vertical, respectively), each holding an Interval specifying
-    the current "view" limits. This might be the entire area, or it
-    might be a subregion due to a previous zoom event.
+To enact zooming, pass `sigview, sigviewlimits` to `panzoom_key`
+and/or `panzoom_mouse`.
+"""
+panzoom(viewlimits::ViewROI, view::ViewROI) = Signal(viewlimits), Signal(view)
+panzoom(viewlimits::ViewROI) = panzoom(viewlimits, viewlimits)
 
-- `:xviewlimits`, `:yviewlimits` encode the maximum allowable viewing
-    region; in most cases these will also be `State{Interval}`s, but
-    any object that supports `interior` and `fullview` may be used.
-    Use `nothing` to indicate unlimited range.
+"""
+    sigviewlimits, sigview = panzoom(c)
 
-If `c` is the only argument to `panzoom`, then the current user-coordinate
-limits of `c` are used.  Note that this invocation works only if the
-Canvas has been drawn at least once; if that is not the case, you need
-to specify the limits manually.
-
-`panzoom(c2, c1)` sets canvas `c2` to share pan/zoom state with canvas
-`c1`.  Panning or zooming in either one will cause the same action in
-the other.
-""" ->
-panzoom(c, xviewlimits::Interval, yviewlimits::Interval) =
-    panzoom(c, ViewROI(xviewlimits, yviewlimits))
-
-
-panzoom(c, xviewlimits::VecLike, yviewlimits::VecLike) = panzoom(c, iv(xviewlimits), iv(yviewlimits))
-
-panzoom(c, xviewlimits::Union{VecLike,Void}, yviewlimits::Union{VecLike,Void}, xview::VecLike, yview::VecLike) = panzoom(c, ViewROI(iv(xviewlimits), iv(yviewlimits)), ViewROI(iv(xview), iv(yview)))
-
-function panzoom(c, max_roi::ViewROI, cur_roi = deepcopy(max_roi))
-    if !haskey(guidata, c)
-        guidata[c, :cur_roi] = Reactive.Signal(cur_roi)
-    end
-    d = guidata[c]
-    d[:cur_roi] = Reactive.Signal(cur_roi)  #overwrites the signal just created if c wasn't stored in guidata before.  I guess that's okay
-    d[:max_roi] = max_roi
-    nothing
-end
-
-function panzoom(c2, c1) #assumes c1 already has panzoom set up, and that both c1 and c2 have been stored in guidata
-    d1, d2 = guidata[c1], guidata[c2]
-	d2[:max_roi] = d1[:max_roi] #should max_roi be a signal too?  Probably would be better for flexibility
-	d2[:cur_roi] = Reactive.Signal(value(d1[:cur_roi])) #is this unsafe?  If d2 already had a :cur_roi signal, then I suppose any signals depending on it can now be corrupted?  have to look at Reactive internals to see.
-	#given question above, may be better to make this a one-way binding (but even that may not totally solve the problem)
-	d2[:cur_roi] = Reactive.bind!(d2[:cur_roi], d1[:cur_roi], true) #two-way binding
-    nothing
-end
-
+Creates two Reactive signals that encode the current and maximal view
+regions. The maximal view region is inferred from the user-coordinates
+of the canvas.  Note that this invocation works only if the Canvas has
+been drawn at least once; if that is not the case, you need to specify
+the limits manually.
+"""
 function panzoom(c)
     gc = getgc(c)
     xmin, ymin = device_to_user(gc, 0, 0)
     xmax, ymax = device_to_user(gc, width(c), height(c))
-    panzoom(c, (xmin, xmax), (ymin, ymax))
+    panzoom(ViewROI((xmin, xmax), (ymin, ymax)))
 end
-
-iv(x) = Interval{Float64}(x...)
-iv(x::Interval) = convert(Interval{Float64}, x)
-iv(x::State) = iv(get(x))
-iv(x::Void) = x
 
 pan(iv, frac::Real, limits) = interior(shift(iv, frac*width(iv)), limits)
 
@@ -219,10 +170,13 @@ zoom(iv, s::Real, limits) = interior(s*iv, limits)
 #key signals for each key necessary.
 #a derived signal that is the ROI being displayed
 #a derived signal that is the data buffer being displayed (this can be implemented in ImagePlayer)
-@doc """
-`id = panzoom_key(c; kwargs...)` initializes panning- and
-zooming-by-keypress for a canvas `c`. `c` is expected to have the four
-`guidata` properties described in `panzoom`.
+"""
+    sigpz = panzoom_key(sigkey, sigviewlimits, sigviewview; kwargs...)`
+
+initializes panning and zooming by keypress. `sigkey` can be created
+for a canvas using `keysignal`. The last two arguments come from
+`panzoom`.  You do not typically need to manipulate the outpu, but you
+do need to hold on to it to prevent it from being garbage-collected.
 
 You can configure the keys through keyword arguments. The default
 settings are shown below. The first entry is the key, the second a
@@ -246,145 +200,59 @@ modifier (like the SHIFT key); `0` means no modifier.
 panning motions are 100% of the view region, and thus jump by one
 whole view area.  The constants are defined in `Gtk.GConstants` and
 the modifiers in `Gtk.GConstants.GdkModifierType`.
-
-The returned `id` can be disabled or enabled via
-`signal_handler_block` and `signal_handler_unblock`, respectively, or
-removed with `signal_handler_disconnect`.
-
-Example:
-```
-    c = @Canvas()
-    panzoom(c, (0,1), (0,1))
-    id = panzoom_key(c)
-```
-The `draw` method for `c` should take account of `:cur_roi`.
-""" ->
-function panzoom_key(c;panleft  = (GDK_KEY_Left,0),
+"""
+function panzoom_key(sigkey,
+                     sigviewlimits,
+                     sigview;
+                     panleft  = (GDK_KEY_Left,0),
                      panright = (GDK_KEY_Right,0),
-                     #panup    = (GDK_KEY_Up, 0),
-                     panup    = (GDK_KEY_UP, CONTROL),
-                     #pandown  = (GDK_KEY_Down,0),
-                     pandown  = (GDK_KEY_Down, CONTROL),
+                     panup    = (GDK_KEY_Up, 0),
+                     pandown  = (GDK_KEY_Down,0),
                      panleft_big  = (GDK_KEY_Left,SHIFT),
                      panright_big = (GDK_KEY_Right,SHIFT),
                      panup_big    = (GDK_KEY_Up,SHIFT),
                      pandown_big  = (GDK_KEY_Down,SHIFT),
                      xpanflip     = false,
                      ypanflip     = false,
-                     #zoomin       = (GDK_KEY_Up,  CONTROL),
-                     zoomin       = (GDK_KEY_Up, 0),
-                     #zoomout      = (GDK_KEY_Down,CONTROL))
-                     zoomout      = (GDK_KEY_Down, 0))
-	xsign = xpanflip ? -1 : 1
-	ysign = ypanflip ? -1 : 1
-	#Set up key event signals.  They will be updated be the panzoom_key_cb callback functionn passed to GTK below
-    add_events(c, KEY_PRESS)
-    setproperty!(c, :can_focus, true)
-    setproperty!(c, :has_focus, true)
-	panleftsig = keysignal(c, panleft)
-	panrightsig = keysignal(c, panright)
-	panupsig = keysignal(c, panup)
-	pandownsig = keysignal(c, pandown)
-	panleft_bigsig = keysignal(c, panright)
-	panright_bigsig = keysignal(c, panright)
-	panup_bigsig = keysignal(c, panright)
-	pandown_bigsig = keysignal(c, panright)
-	zoominsig = keysignal(c, zoomin)
-	zoomoutsig = keysignal(c, zoomout)
-	#Tell GTK to update signals when keys are pressed
-	#alternatively we could pass signal_connect just one "allkeys" signal.  Then have the other signals filter that signal.  But I'm not sure how this will
-	#work if multiple keys are pressed at the same time.  This may be first and foremost a GTK question (is it multithreaded?) and secondly a Reactive question.
-    id = signal_connect(panzoom_key_cb, c, :key_press_event, Cint, (Ptr{Gtk.GdkEventKey},),
-                   false, (panleftsig, panrightsig, panupsig, pandownsig, panleft_bigsig,
-                           panright_bigsig, panup_bigsig, pandown_bigsig,
-                           zoominsig, zoomoutsig)) #the callback is fed a pointer to the widget (in this case a canvas) a pointer to the event, and the last argument of signal_connect (user data) 
-	#Grab the ViewROI signal from guidata (later we may change or remove guidata altogether)
-	roisig = guidata[c, :cur_roi] #a ViewROI signal
-	max_roi = guidata[c, :max_roi] #just a ViewROI, but may make this a signal too
-	xviewlimits = max_roi.xview
-	yviewlimits = max_roi.yview
-
-	#Map handled keypress signals to ViewROI updates
-	Reactive.foreach(panleftsig) do s #currently not using the value of the keypress signal.  This could be changed at some point to allow continuous panning by holding down the key.
-		print("panning left\n")
-		cur_roi = Reactive.value(roisig)
-		cur_roi.xview = pan(cur_roi.xview, -0.1*xsign, xviewlimits) #TODO?  modify pan function to pan!(roi, "x", frac, limits)
-		Reactive.push!(roisig, cur_roi)  #if we do modify pan to pan! as mentioned above, is there a way to trigger a signal update without the Reactive.push! statement? (I assume push! involves an unnecessary copy)
+                     zoomin       = (GDK_KEY_Up,  CONTROL),
+                     zoomout      = (GDK_KEY_Down,CONTROL))
+    xsign = xpanflip ? -1 : 1
+    ysign = ypanflip ? -1 : 1
+    #Set up key event signals.  They will be updated be the panzoom_key_cb callback functionn passed to GTK below
+    sigpz = map(sigkey) do event
+        roi = value(sigview)
+        limits = value(sigviewlimits)
+        matched = true
+        if keymatch(event, panleft)
+            push!(sigview, ViewROI(pan(roi.xview, -0.1*xsign, limits.xview), roi.yview))
+        elseif keymatch(event, panright)
+            push!(sigview, ViewROI(pan(roi.xview, +0.1*xsign, limits.xview), roi.yview))
+        elseif keymatch(event, panup)
+            push!(sigview, ViewROI(roi.xview, pan(roi.yview, -0.1*ysign, limits.yview)))
+        elseif keymatch(event, pandown)
+            push!(sigview, ViewROI(roi.xview, pan(roi.yview, +0.1*ysign, limits.yview)))
+        elseif keymatch(event, panleft_big)
+            push!(sigview, ViewROI(pan(roi.xview, -xsign, limits.xview), roi.yview))
+        elseif keymatch(event, panright_big)
+            push!(sigview, ViewROI(pan(roi.xview, xsign, limits.xview), roi.yview))
+        elseif keymatch(event, panup_big)
+            push!(sigview, ViewROI(roi.xview, pan(roi.yview, -ysign, limits.yview)))
+        elseif keymatch(event, pandown_big)
+            push!(sigview, ViewROI(roi.xview, pan(roi.yview, ysign, limits.yview)))
+        elseif keymatch(event, zoomin)
+            push!(sigview, ViewROI(zoom(roi.xview, 0.5, limits.xview),
+                                   zoom(roi.yview, 0.5, limits.yview)))
+        elseif keymatch(event, zoomout)
+            push!(sigview, ViewROI(zoom(roi.xview, 2.0, limits.xview),
+                                   zoom(roi.yview, 2.0, limits.yview)))
 	end
-	Reactive.foreach(panrightsig) do s
-		print("panning right\n")
-		cur_roi = value(roisig)
-		cur_roi.xview = pan(cur_roi.xview, 0.1*xsign, xviewlimits)
-		Reactive.push!(roisig, cur_roi)
-	end
-	Reactive.foreach(panupsig) do s
-		print("panning up\n")
-		cur_roi = value(roisig)
-		cur_roi.yview = pan(cur_roi.yview, -0.1*ysign, yviewlimits)
-		Reactive.push!(roisig, cur_roi)
-	end
-	Reactive.foreach(pandownsig) do s
-		print("panning down\n")
-		cur_roi = value(roisig)
-		cur_roi.yview = pan(cur_roi.yview,  0.1*ysign, yviewlimits)
-		Reactive.push!(roisig, cur_roi)
-	end
-	Reactive.foreach(panleft_big) do s
-		cur_roi = value(roisig)
-		cur_roi.xview = pan(cur_roi.xview,  -1*xsign, xviewlimits)
-		Reactive.push!(roisig, cur_roi)
-	end
-	Reactive.foreach(panright_big) do s
-		cur_roi = value(roisig)
-		cur_roi.xview = pan(cur_roi.xview,  1*xsign, xviewlimits)
-		Reactive.push!(roisig, cur_roi)
-	end
-	Reactive.foreach(panup_big) do s
-		cur_roi = value(roisig)
-		cur_roi.yview = pan(cur_roi.yview,  -1*ysign, yviewlimits)
-		Reactive.push!(roisig, cur_roi)
-	end
-	Reactive.foreach(pandown_big) do s
-		cur_roi = value(roisig)
-		cur_roi.yview = pan(cur_roi.yview,  1*ysign, yviewlimits)
-		Reactive.push!(roisig, cur_roi)
-	end
-	Reactive.foreach(zoominsig) do s
-		print("zooming in\n")
-		cur_roi = value(roisig)
-		cur_roi.xview = zoom(cur_roi.xview, 0.5, xviewlimits)
-		cur_roi.yview = zoom(cur_roi.yview, 0.5, yviewlimits)
-		Reactive.push!(roisig, cur_roi)
-	end
-	Reactive.foreach(zoomoutsig) do s
-		print("zooming out\n")
-		cur_roi = value(roisig)
-		cur_roi.xview = zoom(cur_roi.xview, 2.0, xviewlimits)
-		cur_roi.yview = zoom(cur_roi.yview, 2.0, yviewlimits)
-		Reactive.push!(roisig, cur_roi)
-	end
-	return id
+    end
+    return sigpz
 end
 
-keymatch(event, keydesc) = event.keyval == keydesc[1] && event.state == @compat(UInt32(keydesc[2]))
+keymatch(event, keydesc) = event.keyval == @compat(UInt32(keydesc[1])) && event.state == @compat(UInt32(keydesc[2]))
 
-@guarded Cint(false) function panzoom_key_cb(widgetp, eventp, user_data) #user_data is filled with KeySignals
-    c = convert(GtkCanvas, widgetp)
-    event = unsafe_load(eventp)
-    handled = Cint(true)
-    ret = Cint(false)
-	for s in user_data
-		if keymatch(event, key(s))
-			print("match found\n")
-			push!(s, true)
-			ret = handled
-			#break  #may want to break if multiple keypresses can't be handled gracefully
-		end
-	end
-	ret
-end
-
-@doc """
+"""
 `panzoom_mouse(c; kwargs...)` initializes panning-by-mouse-scroll and mouse
 control over zooming for a canvas `c`.
 
@@ -436,7 +304,7 @@ Example:
     panzoom(c, (0,1), (0,1))
     panzoom_mouse(c)
 ```
-""" ->
+"""
 function panzoom_mouse(c;
                        # Panning
                        xpan = SHIFT,
