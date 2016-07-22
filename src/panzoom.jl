@@ -6,7 +6,7 @@ import Gtk.GConstants.GdkModifierType: SHIFT, CONTROL, MOD1
 import Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
 import Gtk.GdkEventType: BUTTON_PRESS, DOUBLE_BUTTON_PRESS
 import Gtk.GConstants.GdkScrollDirection: UP, DOWN, LEFT, RIGHT
-import Base: *
+import Base: *, &
 
 if VERSION < v"0.4.0-dev"
     using Docile, Base.Graphics
@@ -58,7 +58,7 @@ function Base.convert{T}(::Type{Interval{T}}, v::VecLike)
 end
 
 Graphics.width(iv::Interval) = iv.max-iv.min
-(Base.&)(iv1::Interval, iv2::Interval) = Interval(max(iv1.min, iv2.min),
+(&)(iv1::Interval, iv2::Interval) = Interval(max(iv1.min, iv2.min),
                                              min(iv1.max, iv2.max))
 Graphics.shift(iv::Interval, dx) = deform(iv, dx, dx)
 function (*)(s::Real, iv::Interval)
