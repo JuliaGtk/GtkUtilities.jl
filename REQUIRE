@@ -3,3 +3,4 @@ Gtk
 Cairo
 Graphics
 Colors
+FixedPointNumbers 0.3.0

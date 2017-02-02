@@ -1,4 +1,4 @@
-using Colors, GtkUtilities, Gtk.ShortNames, Graphics
+using Colors, FixedPointNumbers, GtkUtilities, Gtk.ShortNames, Graphics
 
 include("julia_set.jl")
 
