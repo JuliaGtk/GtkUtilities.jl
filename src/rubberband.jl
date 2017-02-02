@@ -44,7 +44,7 @@ rb_set(r::GraphicsContext, rb::RubberBand) = rectangle(r, rb.pos1.x, rb.pos1.y, 
 # callback_done is executed when the user finishes drawing the rubberband.
 # Its syntax is callback_done(canvas, boundingbox), where the boundingbox is
 # in user coordinates.
-@doc """
+"""
 `rubberband_start(c, x, y, callback_done; minpixels=2)` starts a rubber-band
 selection on Canvas `c` at position `(x,y)`.  When the user releases
 the mouse button, the callback function `callback_done(c, bb)` is run,
@@ -62,7 +62,7 @@ Example:
     end
 
 would set up a Canvas so that rubberband selection starts when the user clicks the mouse; when the button is released, it displays the bounding box of the selection region.
-""" ->
+"""
 function rubberband_start(c::Canvas, x, y, callback_done::Function; minpixels::Int=2)
     # Copy the surface to another buffer, so we can repaint the areas obscured by the rubberband
     r = getgc(c)

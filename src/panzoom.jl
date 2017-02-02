@@ -1,6 +1,6 @@
 module PanZoom
 
-using Gtk, Compat
+using Gtk
 import Gtk.GConstants: GDK_KEY_Left, GDK_KEY_Right, GDK_KEY_Up, GDK_KEY_Down
 import Gtk.GConstants.GdkModifierType: SHIFT, CONTROL, MOD1
 import Gtk.GConstants.GdkEventMask: KEY_PRESS, SCROLL
@@ -8,11 +8,7 @@ import Gtk.GdkEventType: BUTTON_PRESS, DOUBLE_BUTTON_PRESS
 import Gtk.GConstants.GdkScrollDirection: UP, DOWN, LEFT, RIGHT
 import Base: *, &
 
-if VERSION < v"0.4.0-dev"
-    using Docile, Base.Graphics
-else
-    using Graphics
-end
+using Graphics
 
 using ..GtkUtilities.Link
 import ..guidata, ..trigger, ..rubberband_start
@@ -41,10 +37,10 @@ export
 
 const ALT = MOD1
 
-@doc """
+"""
 An `Interval` is a `(min,max)` pair. It is the one-dimensional analog
 of a `BoundingBox`.
-""" ->
+"""
 immutable Interval{T}
     min::T
     max::T
@@ -68,7 +64,7 @@ end
 (*)(iv::Interval, s::Real) = s*iv
 Graphics.deform(iv::Interval, dmin, dmax) = Interval(iv.min+dmin, iv.max+dmax)
 
-@doc """
+"""
 `ivnew = interior(iv, limits)` returns a new version of `iv`, an
 `Interval`, which is inside the region allowd by `limits`. One
 should prefer "shifting" `iv` over "shrinking" `iv` (if possible, the
@@ -80,7 +76,7 @@ The simplest effectual `limits` object is another `Interval`
 representing the full view interval across the chosen axis. If you
 need more sophisticated behavior, you can extend this function to work
 with custom types of `limits` objects.
-""" ->
+"""
 interior(iv, ::Void) = iv
 
 function interior(iv, limits::Interval)
@@ -95,7 +91,7 @@ function interior(iv, limits::Interval)
     Interval(imin, imax) & limits
 end
 
-@doc """
+"""
 `iv = fullview(limits)` returns an `Interval` `iv` that
 encompases the full view as permitted by `limits`.
 
@@ -105,12 +101,12 @@ The simplest effectual `limits` object is another `Interval`
 representing the "whole canvas" along the chosen axis. If you need
 more sophisticated behavior, you can extend this function to work with
 custom types of `limits` objects.
-""" ->
+"""
 fullview(::Void) = nothing
 
 fullview(limits::Interval) = limits
 
-@doc """
+"""
 ```jl
 panzoom(c)
 panzoom(c, xviewlimits, yviewlimits)
@@ -141,7 +137,7 @@ to specify the limits manually.
 `panzoom(c2, c1)` sets canvas `c2` to share pan/zoom state with canvas
 `c1`.  Panning or zooming in either one will cause the same action in
 the other.
-""" ->
+"""
 panzoom(c, xviewlimits::Interval, yviewlimits::Interval) =
     panzoom(c, State(xviewlimits), State(yviewlimits))
 
@@ -203,7 +199,7 @@ pan(iv, frac::Real, limits) = interior(shift(iv, frac*width(iv)), limits)
 
 zoom(iv, s::Real, limits) = interior(s*iv, limits)
 
-@doc """
+"""
 `id = panzoom_key(c; kwargs...)` initializes panning- and
 zooming-by-keypress for a canvas `c`. `c` is expected to have the four
 `guidata` properties described in `panzoom`.
@@ -242,7 +238,7 @@ Example:
     id = panzoom_key(c)
 ```
 The `draw` method for `c` should take account of `:viewbb`.
-""" ->
+"""
 function panzoom_key(c;
                      panleft  = (GDK_KEY_Left,0),
                      panright = (GDK_KEY_Right,0),
@@ -316,9 +312,9 @@ end
     ret
 end
 
-keymatch(event, keydesc) = event.keyval == keydesc[1] && event.state == @compat(UInt32(keydesc[2]))
+keymatch(event, keydesc) = event.keyval == keydesc[1] && event.state == UInt32(keydesc[2])
 
-@doc """
+"""
 `panzoom_mouse(c; kwargs...)` initializes panning-by-mouse-scroll and mouse
 control over zooming for a canvas `c`.
 
@@ -370,7 +366,7 @@ Example:
     panzoom(c, (0,1), (0,1))
     panzoom_mouse(c)
 ```
-""" ->
+"""
 function panzoom_mouse(c;
                        # Panning
                        xpan = SHIFT,
@@ -389,15 +385,15 @@ function panzoom_mouse(c;
     scrollfun = (widget, event) -> begin
         s = 0.1*scrollpm(event.direction)
         xscroll = (event.direction == LEFT) || (event.direction == RIGHT)
-        if xpan != nothing && (event.state == (@compat(UInt32(xpan))) || xscroll)
+        if xpan != nothing && (event.state == UInt32(xpan) || xscroll)
             xview = guidata[c, :xview]
             xviewlimits = guidata[c, :xviewlimits]
             guidata[c, :xview] = pan(xview, (xpanflip ? -1 : 1) * s, xviewlimits)
-        elseif ypan != nothing && event.state == @compat(UInt32(ypan))
+        elseif ypan != nothing && event.state == UInt32(ypan)
             yview = guidata[c, :yview]
             yviewlimits = guidata[c, :yviewlimits]
             guidata[c, :yview] = pan(yview, (ypanflip  ? -1 : 1) * s, yviewlimits)
-        elseif zoom != nothing && event.state == @compat(UInt32(zoom))
+        elseif zoom != nothing && event.state == UInt32(zoom)
             s = factor
             if event.direction == UP
                 s = 1/s

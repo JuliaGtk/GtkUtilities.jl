@@ -1,4 +1,4 @@
-using Gtk.ShortNames, Colors
+using Gtk.ShortNames, Colors, FixedPointNumbers
 
 let c = @Canvas(), win = @Window(c, "Canvas1")
     Gtk.draw(c) do widget
@@ -10,7 +10,7 @@ end
 let c = @Canvas(), win = @Window(c, "Canvas2")
     Gtk.draw(c) do widget
         w, h = Int(width(widget)), Int(height(widget))
-        randcol = reinterpret(RGB{U8}, rand(0x00:0xff, 3, w, h), (w, h))
+        randcol = reinterpret(RGB{N0f8}, rand(0x00:0xff, 3, w, h), (w, h))
         copy!(widget, randcol)
     end
     showall(win)

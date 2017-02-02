@@ -36,9 +36,9 @@ function iterate!{T<:Real}(s::Matrix{T}, z_r::Matrix{T}, z_i::Matrix{T}, xlim, y
     nothing
 end
 
-alloc{T}(::Type{T}, m, n=m) = zeros(T, m, n), zeros(T, m, n), zeros(T, m, n), Array(RGB{U8}, m, n)
+alloc{T}(::Type{T}, m, n=m) = zeros(T, m, n), zeros(T, m, n), zeros(T, m, n), Array(RGB{N0f8}, m, n)
 
-function colorize!(col::Matrix{RGB{U8}}, s, z_r, z_i)
+function colorize!(col::Matrix{RGB{N0f8}}, s, z_r, z_i)
     for i in eachindex(s)
         if s[i] > sthresh
             col[i] = RGB(1,1,1)
