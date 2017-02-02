@@ -1,11 +1,6 @@
 module GuiData
 
-using Gtk, Compat
-if VERSION < v"0.4.0-dev"
-    macro doc(ex)
-        esc(ex.args[2])
-    end
-end
+using Gtk
 
 import ..GtkUtilities.Link: AbstractState, disconnect, set!, set_quietly!
 
@@ -31,7 +26,7 @@ function Base.getindex(wd::GUIData, w, s::Symbol; raw::Bool=false)
     end
     ret
 end
-Base.getindex{T}(wd::GUIData{T}, ws::@compat(Tuple{T,Symbol})) = wd[ws[1], ws[2]]
+Base.getindex{T}(wd::GUIData{T}, ws::Tuple{T,Symbol}) = wd[ws[1], ws[2]]
 
 function Base.setindex!(wd::GUIData, val, w, s::Symbol; raw::Bool=false)
     d = get(wd.data, w, empty_guidata)
@@ -63,11 +58,11 @@ end
     nothing
 end
 
-Base.setindex!{T}(wd::GUIData, val, ws::@compat(Tuple{T,Symbol})) = wd.data[ws[1],ws[2]] = val
+Base.setindex!{T}(wd::GUIData, val, ws::Tuple{T,Symbol}) = wd.data[ws[1],ws[2]] = val
 
 Base.haskey(wd::GUIData, key) = haskey(wd.data, key)
 
-function Base.get{T}(wd::GUIData, ws::@compat(Tuple{T,Symbol}), default; raw::Bool=false)
+function Base.get{T}(wd::GUIData, ws::Tuple{T,Symbol}, default; raw::Bool=false)
     d = get(wd.data, ws[1], empty_guidata)
     val = d == empty_guidata ? default : get(d, ws[2], default)
     if !raw && isa(val, AbstractState)
@@ -76,7 +71,7 @@ function Base.get{T}(wd::GUIData, ws::@compat(Tuple{T,Symbol}), default; raw::Bo
     val
 end
 
-function Base.delete!{T}(wd::GUIData, ws::@compat(Tuple{T,Symbol}))
+function Base.delete!{T}(wd::GUIData, ws::Tuple{T,Symbol})
     d = get(wd.data, ws[1], empty_guidata)
     d == empty_guidata ? wd : (delete!(d, ws[2]); wd)
 end
@@ -87,13 +82,13 @@ Base.show(io::IO, wd::GUIData) = print(io, "GUIdata")
 
 const guidata = GUIData()
 
-@doc """
+"""
 `trigger(widgets, symbols)` is used when you want to set several
 state variables simultaneously, but don't want to refresh the screen
 more frequently than necessary. You can set the `.value` parameter of
 the state variables directly, then call `trigger` to synchronize the
 GUI.
-""" ->
+"""
 function trigger(widgets, syms)
     dct = Dict{Gtk.GtkWidget,Any}()
     canvases = Set{Gtk.GtkCanvas}()
@@ -120,7 +115,7 @@ trigger(widget::Gtk.GtkWidget, sym::Symbol) = trigger((widget,), (sym,))
 trigger(widget::Gtk.GtkWidget, syms)        = trigger((widget,), syms)
 trigger(widgets,               sym::Symbol) = trigger(widgets, (sym,))
 
-@doc """
+"""
 Given a widget (Button, Canvas, Window, etc.) or other graphical object
 `w`, a value `val` can be associated with ("stored in") `w` using
 ```
@@ -156,6 +151,7 @@ itself, use the `raw` keyword:
     state = getindex(guidata, c, :name; raw=true)     # retrieves a state object
     setindex!(guidata, newstate, c, :name; raw=true)  # replaces the old state object
 ```
-""" -> guidata
+"""
+guidata
 
 end

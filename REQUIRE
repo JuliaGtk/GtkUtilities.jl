@@ -1,6 +1,5 @@
-julia 0.4
+julia 0.5
 Gtk
 Cairo
 Graphics
-Docile
-Compat 0.7.16
+Colors

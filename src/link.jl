@@ -1,8 +1,6 @@
 module Link
 
 using Gtk.ShortNames
-using Compat
-import Compat.String
 
 export
     # Types
@@ -109,10 +107,10 @@ Gtk.setproperty!(w::AbstractLinkedWidget, s, val) = (setproperty!(widget(w), s, 
 Base.push!(c::Gtk.GtkRadioButtonGroup, w::LinkedWidget) = push!(c, widget(w))  # ambiguity
 Base.push!(c::Gtk.GtkContainer, w::LinkedWidget) = push!(c, widget(w))
 
-@doc """
+"""
 `set(w, val)` sets the value of the linked widget `w` and fires
 the callback, thereby updating all other linked widgets.
-""" ->
+"""
 function set!(w::AbstractLinkedWidget, val)
     _set!(w, val)  # this might fire the callback, depending on the widget
     emit(w)        # provide this method for those that need explicit firing
@@ -123,10 +121,10 @@ set!(w::LinkedWidget, val) = set!(w.state, val)
 
 emit(w::AbstractLinkedWidget) = nothing   # fallback method
 
-@doc """
+"""
 `set_quietly!(w, val)` sets the value of the linked widget `w` without
 firing the callback.
-""" ->
+"""
 function set_quietly!(w::AbstractLinkedWidget, val)
     ID = id(w)
     ID != 0 && signal_handler_block(w.widget, ID)
@@ -135,7 +133,7 @@ function set_quietly!(w::AbstractLinkedWidget, val)
     w
 end
 
-@doc """
+"""
 `w_linked = link(state, widget)` links the value of the user-interface
 element `widget` to the value of the `AbstractState` `state`. The two
 will henceforth be synchronized: calling `get(state)` or
@@ -145,7 +143,7 @@ objects.
 
 `link(state, c)`, where `c` is a `Canvas`, makes `c` a
 listener for `state`. There is no return value.
-""" ->
+"""
 function link{T}(val::AbstractState{T}, widget::Gtk.GtkWidget)
     w = LinkedWidget{T,typeof(widget),typeof(val)}(widget, 0, val)
     _link(val, w)
