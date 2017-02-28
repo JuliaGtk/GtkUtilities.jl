@@ -137,7 +137,7 @@ delete!(guidata, w)            # deletes all data associated with w
 
 Example:
 
-    c = @Canvas()
+    c = Canvas()
     panzoom(c, (0,1), (0,1))
     xview = guidata[c, :xview]
 ```

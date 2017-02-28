@@ -205,7 +205,7 @@ function _set!{T,W<:Label}(w::LinkedWidget{T,W}, value)
 end
 
 function lLabel(state::AbstractState)
-    lbl = @Label(string(get(state)))
+    lbl = Label(string(get(state)))
     link(state, lbl)
 end
 
@@ -234,7 +234,7 @@ end
 emit{T,W<:Entry}(w::LinkedWidget{T,W}) = signal_emit(w.widget, :activate, Void)
 
 function lEntry(state::AbstractState; kwargs...)
-    e = @Entry(;kwargs...)
+    e = Entry(;kwargs...)
     link(state, e)
 end
 
@@ -253,18 +253,18 @@ function create_callback{T,W<:Scale}(val::AbstractState{T}, w::LinkedWidget{T,W}
 end
 
 function Base.get{T,W<:Scale}(w::LinkedWidget{T,W})
-    adj = @Adjustment(w.widget)
+    adj = Adjustment(w.widget)
     val = getproperty(adj, :value, Int)
     convert(T, val)::T
 end
 
 function _set!{T,W<:Scale}(w::LinkedWidget{T,W}, value)
-    adj = @Adjustment(w.widget)
+    adj = Adjustment(w.widget)
     setproperty!(adj, :value, value)
 end
 
 function lScale(state::AbstractState, args...)
-    sc = @Scale(args...)
+    sc = Scale(args...)
     link(state, sc)
 end
 

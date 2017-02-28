@@ -1,10 +1,10 @@
 using Base.Test, Gtk.ShortNames, GtkUtilities
 
-win = @Window("New title") |> (f = @Frame("A frame"))
-hbox = @Box(:h)  # :h makes a horizontal layout, :v a vertical layout
+win = Window("New title") |> (f = Frame("A frame"))
+hbox = Box(:h)  # :h makes a horizontal layout, :v a vertical layout
 push!(f, hbox)
-cancel = @Button("Cancel")
-ok = @Button("OK")
+cancel = Button("Cancel")
+ok = Button("OK")
 push!(hbox, cancel)
 push!(hbox, ok)
 

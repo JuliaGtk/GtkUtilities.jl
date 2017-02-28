@@ -233,7 +233,7 @@ removed with `signal_handler_disconnect`.
 
 Example:
 ```
-    c = @Canvas()
+    c = Canvas()
     panzoom(c, (0,1), (0,1))
     id = panzoom_key(c)
 ```
@@ -362,7 +362,7 @@ panning and zooming, use
 
 Example:
 ```
-    c = @Canvas()
+    c = Canvas()
     panzoom(c, (0,1), (0,1))
     panzoom_mouse(c)
 ```

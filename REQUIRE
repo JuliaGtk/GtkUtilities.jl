@@ -1,5 +1,5 @@
 julia 0.5
-Gtk
+Gtk 0.11
 Cairo
 Graphics
 Colors
