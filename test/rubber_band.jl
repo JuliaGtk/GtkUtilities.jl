@@ -1,8 +1,8 @@
 using Gtk.ShortNames
 using GtkUtilities, GtkUtilities.Graphics
 
-c = @Canvas()
-win = @Window(c, "RubberBandCanvas")
+c = Canvas()
+win = Window(c, "RubberBandCanvas")
 draw(c) do widget
     ctx = getgc(widget)
     h = height(widget)

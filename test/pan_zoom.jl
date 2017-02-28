@@ -1,8 +1,8 @@
 using Gtk.ShortNames
 using GtkUtilities, GtkUtilities.Graphics
 
-c = @Canvas()
-win = @Window(c, "PanZoomCanvas")
+c = Canvas()
+win = Window(c, "PanZoomCanvas")
 showall(win)
 panzoom(c, (0,1), (0,1))
 

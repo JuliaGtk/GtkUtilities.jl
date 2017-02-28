@@ -6,8 +6,8 @@ e = lEntry(state)
 setproperty!(e, :name, "entry")
 sc = lScale(state, :h, 1:10)
 setproperty!(sc, :name, "scale")
-box = @Box(:v)
-win = @Window(box, "Linked")
+box = Box(:v)
+win = Window(box, "Linked")
 push!(box, e)
 push!(box, sc)
 showall(win)
@@ -47,8 +47,8 @@ end
 
 end
 
-c = @Canvas()
-win = @Window(c)
+c = Canvas()
+win = Window(c)
 s = State(IV.Interval(0,1))
 link(s, c)
 
