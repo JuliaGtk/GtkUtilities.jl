@@ -59,9 +59,13 @@ function Base.fill!(c::Canvas, color::Colorant)
     fill(ctx)
 end
 
-image_surface{T<:Number}(img::AbstractArray{T}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{Gray24}, img)), Cairo.FORMAT_RGB24)
-image_surface{C<:Color}(img::AbstractArray{C}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{RGB24}, img)), Cairo.FORMAT_RGB24)
-image_surface{C<:Colorant}(img::AbstractArray{C}) = CairoImageSurface(reinterpret(UInt32, convert(Matrix{ARGB32}, img)), Cairo.FORMAT_ARGB32)
+image_surface(img::Matrix{Gray24}) = CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{RGB24})  = CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{ARGB32}) = CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_ARGB32)
+
+image_surface{T<:Number}(img::AbstractArray{T}) = image_surface(convert(Matrix{Gray24}, img))
+image_surface{C<:Color}(img::AbstractArray{C}) = image_surface(convert(Matrix{RGB24}, img))
+image_surface{C<:Colorant}(img::AbstractArray{C}) = image_surface(convert(Matrix{ARGB32}, img))
 
 """
 Summary of features in GtkUtilities:
