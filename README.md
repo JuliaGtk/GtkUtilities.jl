@@ -82,31 +82,37 @@ effects of any previous zoom and pan operations.  The second two
 encode the allowable area, representing the largest-sized region
 that may be viewed.
 
-The `draw` method for your Canvas must make use of the
-`:xview`, `:yview` properties.
-In the simplest cases, you might achieve this with
-```jl
-ctx = getgc(c)
-h = height(c)
-w = width(c)
-xview, yview = guidata[c, :xview], guidata[c, :yview]
-set_coords(ctx, BoundingBox(0, w, 0, h), bb)
-```
-and then rendering the entire canvas in units of the original
-"full-view" `bb` (e.g., `:viewlimits`).
-
 You intialize panning and zooming with
 ```
 panzoom(c, [xviewlimits, yviewlimits], [xview, yview])
 panzoom_mouse(c)
 id = panzoom_key(c)
 ```
-
 This sequence will implement panning and zooming with either the
 keyboard or wheel-mouse.  You can specify the keys and modifiers, as
 well as the behavior of scroll-zooming relative to the mouse pointer
 location, via keyword arguments to these functions. See each
 individual function (e.g., `?panzoom_key`) for more information.
+
+The `draw` method for your Canvas must make use of the
+`:xview`, `:yview` properties.
+In the simplest cases, you might achieve this with
+```jl
+draw(c) do widget
+ctx = getgc(c)
+h = height(c)
+w = width(c)
+
+xviewlimits, yviewlimits = guidata[c, :xviewlimits], guidata[c, :yviewlimits]
+bb = BoundingBox( xviewlimits.min, xviewlimits.max, yviewlimits.min, yviewlimits.max)  # you can create bb outside of the draw method instead, by using explicity values for xview/yview-limits. However, 'guidata' will not work unless 'c' has already been fully defined.
+set_coords(ctx, BoundingBox(0, w, 0, h), bb)
+
+xview, yview = guidata[c, :xview], guidata[c, :yview]
+...
+# use xview and yview to manipulate the content of your canvas
+...
+end
+```
 
 The returned `id` can be disabled or enabled via
 `signal_handler_block` and `signal_handler_unblock`, respectively, or
