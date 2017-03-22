@@ -2,7 +2,11 @@
 
 [![Build Status](https://travis-ci.org/timholy/GtkUtilities.jl.svg?branch=master)](https://travis-ci.org/timholy/GtkUtilities.jl)
 
-**NOTE**: new users are encouraged to consider [GtkReactive](https://github.com/JuliaGizmos/GtkReactive.jl) instead.
+# Alternatives
+
+New users are encouraged to consider [GtkReactive](https://github.com/JuliaGizmos/GtkReactive.jl) instead.
+
+# What is GtkUtilities?
 
 This package is a collection of extensions to
 [Gtk](https://github.com/JuliaLang/Gtk.jl) that make interactive
