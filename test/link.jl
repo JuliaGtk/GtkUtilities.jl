@@ -61,7 +61,7 @@ draw(c) do widget
     w = width(widget)
     iv = get(s)
     bb = BoundingBox(iv.min, iv.max, 0, 1)
-    set_coords(ctx, BoundingBox(0, w, 0, h), bb)
+    set_coordinates(ctx, BoundingBox(0, w, 0, h), bb)
     rectangle(ctx, 0, 0, 1, 1)
     set_source(ctx, pat)
     fill(ctx)

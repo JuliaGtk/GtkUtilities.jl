@@ -32,7 +32,7 @@ export
     panzoom,
     panzoom_key,
     panzoom_mouse,
-    set_coords
+    set_coordinates
 
 include("link.jl")
 using .Link

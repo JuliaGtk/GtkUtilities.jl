@@ -21,7 +21,7 @@ panzoom_mouse(c)                                                      # Initiali
     region_of_interest = view(A, yv, xv)                              # select subset of A according to the indices yv and xv
     copy!(widget, region_of_interest)                                 # copy the region of interest into c (widget)
 
-    set_coords( getgc(widget),                                        # set_coords "associates" the two input intervals with the canvas "widget" (in this case, allows double zooming)
+    set_coordinates( getgc(widget),                                        # set_coordinates "associates" the two input intervals with the canvas "widget" (in this case, allows double zooming)
                 BoundingBox(0,width(widget),                          # BoundingBox describing total viewable area in canvas (changes if you scale)
                             0,height(widget)),                        #
                 BoundingBox(xview.min, xview.max,                     # BoundingBox describing current image size
