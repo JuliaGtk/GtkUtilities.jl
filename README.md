@@ -111,7 +111,7 @@ w = width(c)
 
 xviewlimits, yviewlimits = guidata[c, :xviewlimits], guidata[c, :yviewlimits]
 bb = BoundingBox( xviewlimits.min, xviewlimits.max, yviewlimits.min, yviewlimits.max)  # you can create bb outside of the draw method instead, by using explicity values for xview/yview-limits. However, 'guidata' will not work unless 'c' has already been fully defined.
-set_coords(ctx, BoundingBox(0, w, 0, h), bb)
+set_coordinates(ctx, BoundingBox(0, w, 0, h), bb)
 
 xview, yview = guidata[c, :xview], guidata[c, :yview]
 ...

@@ -9,7 +9,7 @@ panzoom(c, (0,1), (0,1))
 draw(c) do widget
     xview, yview = guidata[widget, :xview], guidata[widget, :yview]
     ctx = getgc(widget)
-    set_coords(ctx, xview, yview)
+    set_coordinates(ctx, xview, yview)
     # Paint red rectangle
     rectangle(ctx, 0, 0, 0.5, 0.5)
     set_source_rgb(ctx, 1, 0, 0)

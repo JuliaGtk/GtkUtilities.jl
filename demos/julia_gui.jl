@@ -15,7 +15,7 @@ s, z_r, z_i, col = alloc(Float32, width(win))
 @guarded Gtk.ShortNames.draw(c) do widget
     # Retrieve the display region
     xview, yview = guidata[widget, :xview], guidata[widget, :yview]
-    set_coords(getgc(widget), xview, yview)
+    set_coordinates(getgc(widget), xview, yview)
     # Render the image for this region
     iterate!(s, z_r, z_i, (yview.min,yview.max), (xview.min,xview.max))
     colorize!(col, s, z_r, z_i)

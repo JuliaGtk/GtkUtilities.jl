@@ -453,7 +453,7 @@ end
 # We don't take the step of setting new coordinates on the Canvas
 # because we need to let the user be in charge of that. (For example,
 # in plots you want to zoom in on the data but leave the axes
-# visible.) But see set_coords below. So we content ourselves with
+# visible.) But see set_coordinates below. So we content ourselves with
 function zoom_bb(widget, bb::BoundingBox, user_to_data=(c,x,y)->(x,y))
     xmin, ymin = user_to_data(widget, bb.xmin, bb.ymin)
     xmax, ymax = user_to_data(widget, bb.xmax, bb.ymax)
@@ -470,14 +470,14 @@ function zoom_reset(widget)
 end
 
 # For completely mysterious reasons, these are borked
-# function Graphics.set_coords(ctx::GraphicsContext, bb::BoundingBox)
-#     set_coords(ctx, BoundingBox(0,width(ctx),0,height(ctx)), bb)
+# function Graphics.set_coordinates(ctx::GraphicsContext, bb::BoundingBox)
+#     set_coordinates(ctx, BoundingBox(0,width(ctx),0,height(ctx)), bb)
 # end
-# function Graphics.set_coords(widget, bb::BoundingBox)
-#     set_coords(getgc(widget), bb)
+# function Graphics.set_coordinates(widget, bb::BoundingBox)
+#     set_coordinates(getgc(widget), bb)
 # end
-function Graphics.set_coords(ctx::GraphicsContext, ix::Interval, iy::Interval)
-    set_coords(ctx, BoundingBox(0,width(ctx),0,height(ctx)), BoundingBox(ix.min, ix.max, iy.min, iy.max))
+function Graphics.set_coordinates(ctx::GraphicsContext, ix::Interval, iy::Interval)
+    set_coordinates(ctx, BoundingBox(0,width(ctx),0,height(ctx)), BoundingBox(ix.min, ix.max, iy.min, iy.max))
 end
 
 end # module
