@@ -63,16 +63,16 @@ Example:
 
 would set up a Canvas so that rubberband selection starts when the user clicks the mouse; when the button is released, it displays the bounding box of the selection region.
 """
-function rubberband_start(c::Canvas, x, y, callback_done::Function; minpixels::Int=2)
+function rubberband_start(c::Canvas, x, y, callback_done::Function; minpixels::Int=2, update_signal=:button1motion, stop_signal=:button1release)
     # Copy the surface to another buffer, so we can repaint the areas obscured by the rubberband
     r = getgc(c)
     save(r)
     reset_transform(r)
     ctxcopy = copy(r)
     rb = RubberBand(Vec2(x,y), Vec2(x,y), false, minpixels)
-    push!((c.mouse, :button1motion),  (c, event) -> rubberband_move(c, rb, event.x, event.y, ctxcopy))
+    push!((c.mouse, update_signal),  (c, event) -> rubberband_move(c, rb, event.x, event.y, ctxcopy))
     push!((c.mouse, :motion), Gtk.default_mouse_cb)
-    push!((c.mouse, :button1release), (c, event) -> rubberband_stop(c, rb, event.x, event.y, ctxcopy, callback_done))
+    push!((c.mouse, stop_signal), (c, event) -> rubberband_stop(c, rb, event.x, event.y, ctxcopy, callback_done; update_signal=update_signal, stop_signal=stop_signal))
     nothing
 end
 
@@ -88,10 +88,10 @@ function rubberband_move(c::Canvas, rb::RubberBand, x, y, ctxcopy)
     reveal(c, false)
 end
 
-function rubberband_stop(c::Canvas, rb::RubberBand, x, y, ctxcopy, callback_done)
-    pop!((c.mouse, :button1motion))
+function rubberband_stop(c::Canvas, rb::RubberBand, x, y, ctxcopy, callback_done; update_signal=:button1motion, stop_signal=:button1release)
+    pop!((c.mouse, update_signal))
     pop!((c.mouse, :motion))
-    pop!((c.mouse, :button1release))
+    pop!((c.mouse, stop_signal))
     if !rb.moved
         return
     end
