@@ -1,9 +1,7 @@
 __precompile__()
-
 module GtkUtilities
 
 using Cairo, Gtk.ShortNames, Colors
-
 using Graphics
 
 export
@@ -44,7 +42,7 @@ include("panzoom.jl")
 using .PanZoom
 import .PanZoom: interior, fullview   # for extensions
 
-function Base.copy!{C<:Union{Colorant,Number}}(ctx::CairoContext, img::AbstractArray{C})
+function Base.copy!(ctx::CairoContext, img::AbstractArray{C}) where {C<:Union{Colorant,Number}}
     save(ctx)
     Cairo.reset_transform(ctx)
     image(ctx, image_surface(img), 0, 0, width(ctx), height(ctx))
@@ -59,13 +57,15 @@ function Base.fill!(c::Canvas, color::Colorant)
     fill(ctx)
 end
 
-image_surface(img::Matrix{Gray24}) = CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
-image_surface(img::Matrix{RGB24})  = CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_RGB24)
-image_surface(img::Matrix{ARGB32}) = CairoImageSurface(reinterpret(UInt32, img), Cairo.FORMAT_ARGB32)
+image_to_cairo(img) = convert(Matrix{UInt32}, reinterpret(UInt32, img))
 
-image_surface{T<:Number}(img::AbstractArray{T}) = image_surface(convert(Matrix{Gray24}, img))
-image_surface{C<:Color}(img::AbstractArray{C}) = image_surface(convert(Matrix{RGB24}, img))
-image_surface{C<:Colorant}(img::AbstractArray{C}) = image_surface(convert(Matrix{ARGB32}, img))
+image_surface(img::Matrix{Gray24}) = CairoImageSurface(image_to_cairo(img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{RGB24})  = CairoImageSurface(image_to_cairo(img), Cairo.FORMAT_RGB24)
+image_surface(img::Matrix{ARGB32}) = CairoImageSurface(image_to_cairo(img), Cairo.FORMAT_ARGB32)
+
+image_surface(img::AbstractArray{T}) where {T<:Number} = image_surface(convert(Matrix{Gray24}, img))
+image_surface(img::AbstractArray{C}) where {C<:Color} = image_surface(convert(Matrix{RGB24}, img))
+image_surface(img::AbstractArray{C}) where {C<:Colorant} = image_surface(convert(Matrix{ARGB32}, img))
 
 """
 Summary of features in GtkUtilities:

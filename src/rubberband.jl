@@ -10,7 +10,7 @@ export rubberband_start
 # so device_to_user doesn't do anything. The back canvas has
 #     user coordinates = image pixel coordinates,
 # so is the correct reference for anything dealing with image pixels.
-type RubberBand
+mutable struct RubberBand
     pos1::Vec2
     pos2::Vec2
     moved::Bool

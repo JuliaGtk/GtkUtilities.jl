@@ -19,14 +19,14 @@ export
     lScale
 
 
-abstract AbstractState{T}
-abstract AbstractLinkedWidget{T,W<:Gtk.GtkWidget}
+abstract type AbstractState{T} end
+abstract type AbstractLinkedWidget{T,W<:Gtk.GtkWidget} end
 
 ### AbstractState objects hold values and sync to UI elements
 # They have at least three fields: `value`, `widgets`, and `canvases`
 
-Base.eltype{T}(::Type{AbstractState{T}}) = T
-Base.eltype{S<:AbstractState}(::Type{S}) = eltype(super(S))
+Base.eltype(::Type{AbstractState{T}}) where T = T
+Base.eltype(::Type{S}) where {S<:AbstractState} = eltype(super(S))
 
 Base.get(state::AbstractState) = state.value
 
@@ -36,7 +36,7 @@ add_canvas!(state::AbstractState, w) = push!(state.canvases, w)
 function Base.show(io::IO, state::AbstractState)
     print(io, typeof(state).name.name, "(", state.value)
     for w in state.widgets
-        n = getproperty(w.widget, :name, String)
+        n = get_gtk_property(w.widget, :name, String)
         if !isempty(n)
             print(io, ",\"", n, "\"")
         end
@@ -46,15 +46,15 @@ end
 
 ### State
 
-type State{T} <: AbstractState{T}
+mutable struct State{T} <: AbstractState{T}
     value::T
     widgets::Vector
     canvases::Vector{Canvas}
 end
 
-function State{T}(value::T;
-         widgets::Vector = Array(AbstractLinkedWidget{T},0),
-         canvases::Vector{Canvas} = Array(Canvas, 0))
+function State(value::T;
+         widgets::Vector = Array{AbstractLinkedWidget{T}}(undef,0),
+         canvases::Vector{Canvas} = Array{Canvas}(undef,0)) where T
     State{T}(value, widgets, canvases)
 end
 
@@ -66,7 +66,7 @@ function Base.similar(s::State)
     State(v, copy(s.widgets), copy(s.canvases))
 end
 
-function set!{T}(state::State{T}, value)
+function set!(state::State{T}, value) where {T}
     state.value = value
     for w in state.widgets
         set_quietly!(w, state.value)
@@ -78,7 +78,7 @@ function set!{T}(state::State{T}, value)
 end
 
 # Set the value, skipping the input widget
-function set!{T}(state::State{T}, widget::AbstractLinkedWidget)
+function set!(state::State{T}, widget::AbstractLinkedWidget) where {T}
     value = get(widget)
     state.value = value
     for w in state.widgets
@@ -93,7 +93,7 @@ end
 
 ### Widgets linked to AbstractState objects
 
-type LinkedWidget{T,W,S<:AbstractState} <: AbstractLinkedWidget{T,W}
+mutable struct LinkedWidget{T,W,S<:AbstractState} <: AbstractLinkedWidget{T,W}
     widget::W
     id::UInt
     state::S
@@ -102,8 +102,8 @@ end
 widget(w::AbstractLinkedWidget) = w.widget
 id(w::AbstractLinkedWidget) = w.id
 
-Gtk.getproperty{T}(w::AbstractLinkedWidget, s, ::Type{T}) = getproperty(widget(w), s, T)
-Gtk.setproperty!(w::AbstractLinkedWidget, s, val) = (setproperty!(widget(w), s, val); w)
+Gtk.get_gtk_property(w::AbstractLinkedWidget, s, ::Type{T}) where {T} = get_gtk_property(widget(w), s, T)
+Gtk.set_gtk_property!(w::AbstractLinkedWidget, s, val) = (set_gtk_property!(widget(w), s, val); w)
 Base.push!(c::Gtk.GtkRadioButtonGroup, w::LinkedWidget) = push!(c, widget(w))  # ambiguity
 Base.push!(c::Gtk.GtkContainer, w::LinkedWidget) = push!(c, widget(w))
 
@@ -144,17 +144,17 @@ objects.
 `link(state, c)`, where `c` is a `Canvas`, makes `c` a
 listener for `state`. There is no return value.
 """
-function link{T}(val::AbstractState{T}, widget::Gtk.GtkWidget)
+function link(val::AbstractState{T}, widget::Gtk.GtkWidget) where {T}
     w = LinkedWidget{T,typeof(widget),typeof(val)}(widget, 0, val)
     _link(val, w)
 end
 
-function link{T}(val::AbstractState{T}, c::Canvas)
+function link(val::AbstractState{T}, c::Canvas) where {T}
     add_canvas!(val, c)
     nothing
 end
 
-function _link{T}(val::AbstractState{T}, w::AbstractLinkedWidget)
+function _link(val::AbstractState{T}, w::AbstractLinkedWidget) where {T}
     w.id = create_callback(val, w)
     _set!(w, get(val))
     add_widget!(val, w)
@@ -177,7 +177,7 @@ end
 
 function Base.show(io::IO, w::LinkedWidget)
     print(io, "Linked ", typeof(w.widget).name.name, "(", get(w), ")")
-    n = getproperty(w.widget, :name, String)
+    n = get_gtk_property(w.widget, :name, String)
     if !isempty(n)
         print(io, ",\"", n, "\"")
     end
@@ -186,22 +186,22 @@ end
 
 ## Label
 
-function create_callback{T,W<:Label}(val::AbstractState{T}, w::LinkedWidget{T,W})
+function create_callback(val::AbstractState{T}, w::LinkedWidget{T,W}) where {T,W<:Label}
     0
 end
 
-function Base.get{T<:AbstractString,W<:Label}(w::LinkedWidget{T,W})
-    val = getproperty(w.widget, :label, String)
+function Base.get(w::LinkedWidget{T,W}) where {T<:AbstractString,W<:Label}
+    val = get_gtk_property(w.widget, :label, String)
     convert(T, val)::T
 end
 
-function Base.get{T<:Number,W<:Label}(w::LinkedWidget{T,W})
-    val = getproperty(w.widget, :label, String)
+function Base.get(w::LinkedWidget{T,W}) where {T<:Number,W<:Label}
+    val = get_gtk_property(w.widget, :label, String)
     parse(T, val)::T
 end
 
-function _set!{T,W<:Label}(w::LinkedWidget{T,W}, value)
-    setproperty!(w.widget, :label, string(value))
+function _set!(w::LinkedWidget{T,W}, value) where {T,W<:Label}
+    set_gtk_property!(w.widget, :label, string(value))
 end
 
 function lLabel(state::AbstractState)
@@ -211,27 +211,27 @@ end
 
 ## Entry
 
-function create_callback{T,W<:Entry}(val::AbstractState{T}, w::LinkedWidget{T,W})
+function create_callback(val::AbstractState{T}, w::LinkedWidget{T,W}) where {T,W<:Entry}
     signal_connect(w.widget, :activate) do widget
         set!(val, get(w))
     end
 end
 
-function Base.get{T<:AbstractString,W<:Entry}(w::LinkedWidget{T,W})
-    val = getproperty(w.widget, :text, String)
+function Base.get(w::LinkedWidget{T,W}) where {T<:AbstractString,W<:Entry}
+    val = get_gtk_property(w.widget, :text, String)
     convert(T, val)::T
 end
 
-function Base.get{T<:Number,W<:Entry}(w::LinkedWidget{T,W})
-    val = getproperty(w.widget, :text, String)
+function Base.get(w::LinkedWidget{T,W}) where {T<:Number,W<:Entry}
+    val = get_gtk_property(w.widget, :text, String)
     parse(T, val)::T
 end
 
-function _set!{T,W<:Entry}(w::LinkedWidget{T,W}, value)
-    setproperty!(w.widget, :text, string(value))
+function _set!(w::LinkedWidget{T,W}, value) where {T,W<:Entry}
+    set_gtk_property!(w.widget, :text, string(value))
 end
 
-emit{T,W<:Entry}(w::LinkedWidget{T,W}) = signal_emit(w.widget, :activate, Void)
+emit(w::LinkedWidget{T,W}) where {T,W<:Entry} = signal_emit(w.widget, :activate, Nothing)
 
 function lEntry(state::AbstractState; kwargs...)
     e = Entry(;kwargs...)
@@ -248,19 +248,19 @@ function scale_cb(scaleptr::Ptr, state)
     nothing
 end
 
-function create_callback{T,W<:Scale}(val::AbstractState{T}, w::LinkedWidget{T,W})
-    signal_connect(scale_cb, w.widget, "value-changed", Void, (), false, val)
+function create_callback(val::AbstractState{T}, w::LinkedWidget{T,W}) where {T,W<:Scale}
+    signal_connect(scale_cb, w.widget, "value-changed", Nothing, (), false, val)
 end
 
-function Base.get{T,W<:Scale}(w::LinkedWidget{T,W})
+function Base.get(w::LinkedWidget{T,W}) where {T,W<:Scale}
     adj = Adjustment(w.widget)
-    val = getproperty(adj, :value, Int)
+    val = get_gtk_property(adj, :value, Int)
     convert(T, val)::T
 end
 
-function _set!{T,W<:Scale}(w::LinkedWidget{T,W}, value)
+function _set!(w::LinkedWidget{T,W}, value) where {T,W<:Scale}
     adj = Adjustment(w.widget)
-    setproperty!(adj, :value, value)
+    set_gtk_property!(adj, :value, value)
 end
 
 function lScale(state::AbstractState, args...)

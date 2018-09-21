@@ -14,7 +14,7 @@ using ..GtkUtilities.Link
 import ..guidata, ..trigger, ..rubberband_start
 import ..Link: AbstractState
 
-typealias VecLike Union{AbstractVector,Tuple}
+const VecLike = Union{AbstractVector,Tuple}
 
 export
     # Types
@@ -41,14 +41,14 @@ const ALT = MOD1
 An `Interval` is a `(min,max)` pair. It is the one-dimensional analog
 of a `BoundingBox`.
 """
-immutable Interval{T}
+struct Interval{T}
     min::T
     max::T
 end
 
-Base.convert{T}(::Type{Interval{T}}, v::Interval{T}) = v
-Base.convert{T}(::Type{Interval{T}}, v::Interval) = Interval{T}(v.min, v.max)
-function Base.convert{T}(::Type{Interval{T}}, v::VecLike)
+Base.convert(::Type{Interval{T}}, v::Interval{T}) where T = v
+Base.convert(::Type{Interval{T}}, v::Interval)  where T = Interval{T}(v.min, v.max)
+function Base.convert(::Type{Interval{T}}, v::VecLike) where T
     v1, v2 = first(v), last(v)
     Interval{T}(min(v1,v2), max(v1,v2))
 end
@@ -77,7 +77,7 @@ representing the full view interval across the chosen axis. If you
 need more sophisticated behavior, you can extend this function to work
 with custom types of `limits` objects.
 """
-interior(iv, ::Void) = iv
+interior(iv, ::Nothing) = iv
 
 function interior(iv, limits::Interval)
     imin, imax = iv.min, iv.max
@@ -102,7 +102,7 @@ representing the "whole canvas" along the chosen axis. If you need
 more sophisticated behavior, you can extend this function to work with
 custom types of `limits` objects.
 """
-fullview(::Void) = nothing
+fullview(::Nothing) = nothing
 
 fullview(limits::Interval) = limits
 
@@ -143,7 +143,7 @@ panzoom(c, xviewlimits::Interval, yviewlimits::Interval) =
 
 panzoom(c, xviewlimits::VecLike, yviewlimits::VecLike) = panzoom(c, iv(xviewlimits), iv(yviewlimits))
 
-panzoom(c, xviewlimits::Union{VecLike,Void}, yviewlimits::Union{VecLike,Void}, xview::VecLike, yview::VecLike) = panzoom(c, State(iv(xviewlimits)), State(iv(yviewlimits)), State(iv(xview)), State(iv(yview)))
+panzoom(c, xviewlimits::Union{VecLike,Nothing}, yviewlimits::Union{VecLike,Nothing}, xview::VecLike, yview::VecLike) = panzoom(c, State(iv(xviewlimits)), State(iv(yviewlimits)), State(iv(xview)), State(iv(yview)))
 
 function panzoom(c, xviewlimits::AbstractState, yviewlimits::AbstractState, xview::AbstractState = similar(xviewlimits), yview::AbstractState = similar(yviewlimits))
     panzoom_disconnect(c)
@@ -193,7 +193,7 @@ end
 iv(x) = Interval{Float64}(x...)
 iv(x::Interval) = convert(Interval{Float64}, x)
 iv(x::State) = iv(get(x))
-iv(x::Void) = x
+iv(x::Nothing) = x
 
 pan(iv, frac::Real, limits) = interior(shift(iv, frac*width(iv)), limits)
 
@@ -253,8 +253,8 @@ function panzoom_key(c;
                      zoomin       = (GDK_KEY_Up,  CONTROL),
                      zoomout      = (GDK_KEY_Down,CONTROL))
     add_events(c, KEY_PRESS)
-    setproperty!(c, :can_focus, true)
-    setproperty!(c, :has_focus, true)
+    set_gtk_property!(c, :can_focus, true)
+    set_gtk_property!(c, :has_focus, true)
     signal_connect(key_cb, c, :key_press_event, Cint, (Ptr{Gtk.GdkEventKey},),
                    false, (panleft, panright, panup, pandown, panleft_big,
                            panright_big, panup_big, pandown_big, xpanflip,
@@ -403,7 +403,7 @@ function panzoom_mouse(c;
     end
     # Click events
     clickfun = (widget, event) -> begin
-        setproperty!(widget, :is_focus, true)
+        set_gtk_property!(widget, :is_focus, true)
         if event.event_type == initiate
             rubberband_start(widget, event.x, event.y, (widget, bb) -> zoom_bb(widget, bb, user_to_data))
         elseif event.event_type == reset

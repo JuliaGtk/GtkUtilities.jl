@@ -6,7 +6,7 @@ import ..GtkUtilities.Link: AbstractState, disconnect, set!, set_quietly!
 
 export guidata, trigger
 
-immutable GUIData{T}
+struct GUIData{T}
     data::Dict{T,Dict{Symbol,Any}}
 end
 
@@ -26,14 +26,14 @@ function Base.getindex(wd::GUIData, w, s::Symbol; raw::Bool=false)
     end
     ret
 end
-Base.getindex{T}(wd::GUIData{T}, ws::Tuple{T,Symbol}) = wd[ws[1], ws[2]]
+Base.getindex(wd::GUIData{T}, ws::Tuple{T,Symbol}) where T = wd[ws[1], ws[2]]
 
 function Base.setindex!(wd::GUIData, val, w, s::Symbol; raw::Bool=false)
     d = get(wd.data, w, empty_guidata)
     if d == empty_guidata
         d = wd.data[w] = Dict{Symbol,Any}()
         if isa(w, Gtk.GtkWidget)
-            signal_connect(destroy_callback, w, "destroy", Void, (), false, (w,wd))
+            signal_connect(destroy_callback, w, "destroy", Nothing, (), false, (w,wd))
         end
     end
     if !raw
@@ -58,11 +58,11 @@ end
     nothing
 end
 
-Base.setindex!{T}(wd::GUIData, val, ws::Tuple{T,Symbol}) = wd.data[ws[1],ws[2]] = val
+Base.setindex!(wd::GUIData, val, ws::Tuple{T,Symbol}) where T = wd.data[ws[1],ws[2]] = val
 
 Base.haskey(wd::GUIData, key) = haskey(wd.data, key)
 
-function Base.get{T}(wd::GUIData, ws::Tuple{T,Symbol}, default; raw::Bool=false)
+function Base.get(wd::GUIData, ws::Tuple{T,Symbol}, default; raw::Bool=false) where T
     d = get(wd.data, ws[1], empty_guidata)
     val = d == empty_guidata ? default : get(d, ws[2], default)
     if !raw && isa(val, AbstractState)
@@ -71,13 +71,12 @@ function Base.get{T}(wd::GUIData, ws::Tuple{T,Symbol}, default; raw::Bool=false)
     val
 end
 
-function Base.delete!{T}(wd::GUIData, ws::Tuple{T,Symbol})
+function Base.delete!(wd::GUIData, ws::Tuple{T,Symbol}) where T
     d = get(wd.data, ws[1], empty_guidata)
     d == empty_guidata ? wd : (delete!(d, ws[2]); wd)
 end
 
 Base.delete!(wd::GUIData, w) = delete!(wd.data, w)
-
 Base.show(io::IO, wd::GUIData) = print(io, "GUIdata")
 
 const guidata = GUIData()

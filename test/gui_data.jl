@@ -1,4 +1,4 @@
-using Base.Test, Gtk.ShortNames, GtkUtilities
+using Test, Gtk.ShortNames, GtkUtilities
 
 win = Window("New title") |> (f = Frame("A frame"))
 hbox = Box(:h)  # :h makes a horizontal layout, :v a vertical layout
