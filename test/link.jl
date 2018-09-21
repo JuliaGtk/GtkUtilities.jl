@@ -1,11 +1,11 @@
 using GtkUtilities, Gtk.ShortNames, Cairo, GtkUtilities.Graphics
-using Base.Test
+using Test
 
 state = State(7)
 e = lEntry(state)
-setproperty!(e, :name, "entry")
+set_gtk_property!(e, :name, "entry")
 sc = lScale(state, :h, 1:10)
-setproperty!(sc, :name, "scale")
+set_gtk_property!(sc, :name, "scale")
 box = Box(:v)
 win = Window(box, "Linked")
 push!(box, e)
@@ -17,7 +17,7 @@ showall(win)
 @test get(sc) == 7
 io = IOBuffer()
 show(io, state)
-@test takebuf_string(io) == "State(7,\"entry\",\"scale\")"
+@test String(take!(io)) == "State(7,\"entry\",\"scale\")"
 set!(state, 5)
 @test get(state)  == 5
 @test get(e)  == 5
@@ -40,7 +40,7 @@ set!(l, "Gtk")
 
 module IV
 
-type Interval
+mutable struct Interval
     min::Float64
     max::Float64
 end
