@@ -20,7 +20,7 @@ graphics easier.  For example, it allows you to:
 
 Install via
 ```jl
-Pkg.add("GtkUtilities")
+]add GtkUtilities
 ```
 
 ## Usage
