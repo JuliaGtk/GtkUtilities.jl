@@ -4,7 +4,7 @@ using Test
 state = State(7)
 e = lEntry(state)
 set_gtk_property!(e, :name, "entry")
-sc = lScale(state, :h, 1:10)
+sc = lScale(state, false, 1:10)
 set_gtk_property!(sc, :name, "scale")
 box = Box(:v)
 win = Window(box, "Linked")

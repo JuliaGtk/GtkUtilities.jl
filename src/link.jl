@@ -95,7 +95,7 @@ end
 
 mutable struct LinkedWidget{T,W,S<:AbstractState} <: AbstractLinkedWidget{T,W}
     widget::W
-    id::UInt
+    id::Culong
     state::S
 end
 
