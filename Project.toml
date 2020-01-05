@@ -1,6 +1,6 @@
 name = "GtkUtilities"
 uuid = "54070661-dc8a-5775-9964-1e9cd095ac62"
-version = "1.0.0"
+version = "1.0.1"
 
 [deps]
 Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
