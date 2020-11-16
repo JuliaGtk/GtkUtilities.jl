@@ -1,6 +1,6 @@
 # GtkUtilities
 
-[![Build Status](https://travis-ci.org/timholy/GtkUtilities.jl.svg?branch=master)](https://travis-ci.org/timholy/GtkUtilities.jl)
+[![Build Status](https://travis-ci.com/JuliaGtk/GtkUtilities.jl.svg?branch=master)](https://travis-ci.com/JuliaGtk/GtkUtilities.jl)
 
 # Alternatives
 
